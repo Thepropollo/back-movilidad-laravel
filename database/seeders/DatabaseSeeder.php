@@ -224,6 +224,18 @@ class DatabaseSeeder extends Seeder
             ['rate_key' => 'extra_100'],
             ['rate_value' => 7.50]
         );
+        RateConfiguration::firstOrCreate(
+            ['rate_key' => 'precio_diesel'],
+            ['rate_value' => 1.80]
+        );
+        RateConfiguration::firstOrCreate(
+            ['rate_key' => 'precio_extra'],
+            ['rate_value' => 2.40]
+        );
+        RateConfiguration::firstOrCreate(
+            ['rate_key' => 'precio_super'],
+            ['rate_value' => 4.00]
+        );
 
         // Sembrar componentes de checklist
         $checklistComponents = [
@@ -440,6 +452,62 @@ class DatabaseSeeder extends Seeder
                     'fuel_level' => '1/2',
                     'checkpoint_mileage' => 45400,
                     'general_observations' => 'Llegada registrada.',
+                    'created_at' => $llegadaDate
+                ]
+            );
+
+            // Sembrar logs de auditoría de seguridad
+            \Domain\Auth\Models\SystemLog::firstOrCreate(
+                ['action' => 'APROBÓ_SOLICITUD: Manta -> QUITO (ID #1)'],
+                [
+                    'user_id' => User::where('email', 'rector@test.com')->first()->id ?? $jefe->id,
+                    'affected_table' => 'mobilization_requests',
+                    'record_id' => $req->id,
+                    'ip_address' => '192.168.10.15',
+                    'created_at' => \Carbon\Carbon::now()->subDays(3)
+                ]
+            );
+
+            \Domain\Auth\Models\SystemLog::firstOrCreate(
+                ['action' => 'EMITIÓ_HOJA_RUTA: Vehículo MBA-1234 (ID #1)'],
+                [
+                    'user_id' => $jefe->id,
+                    'affected_table' => 'route_sheets',
+                    'record_id' => $sheet1->id,
+                    'ip_address' => '192.168.10.50',
+                    'created_at' => \Carbon\Carbon::now()->subDays(2)
+                ]
+            );
+
+            \Domain\Auth\Models\SystemLog::firstOrCreate(
+                ['action' => 'EMITIÓ_VALE_COMBUSTIBLE: ULEAM-FUEL12 para Primax Tarqui'],
+                [
+                    'user_id' => $jefe->id,
+                    'affected_table' => 'fuel_orders',
+                    'record_id' => 1,
+                    'ip_address' => '192.168.10.50',
+                    'created_at' => \Carbon\Carbon::now()->subDays(2)
+                ]
+            );
+
+            \Domain\Auth\Models\SystemLog::firstOrCreate(
+                ['action' => 'REGISTRÓ_INSPECCION_SALIDA: Kilometraje 45000 (ID #2)'],
+                [
+                    'user_id' => $jefe->id,
+                    'affected_table' => 'delivery_reception_acts',
+                    'record_id' => 1,
+                    'ip_address' => '192.168.10.22',
+                    'created_at' => $salidaDate
+                ]
+            );
+
+            \Domain\Auth\Models\SystemLog::firstOrCreate(
+                ['action' => 'REGISTRÓ_INSPECCION_LLEGADA: Kilometraje 45400 (ID #2)'],
+                [
+                    'user_id' => $jefe->id,
+                    'affected_table' => 'delivery_reception_acts',
+                    'record_id' => 2,
+                    'ip_address' => '192.168.10.22',
                     'created_at' => $llegadaDate
                 ]
             );

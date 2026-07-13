@@ -54,6 +54,31 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/compensaciones/{hoja_ruta_id}/liquidar', \App\Http\Controllers\Request\DriverCompensationLiquidarController::class);
     Route::post('/compensaciones/{hoja_ruta_id}/aprobar', \App\Http\Controllers\Request\DriverCompensationAprobarController::class);
 
+    // Componentes de Administración General, Reportes y Auditoría
+    Route::get('/reportes/kpis', \App\Http\Controllers\Request\AdminKpiController::class);
+    Route::get('/dashboard/metrics', \App\Http\Controllers\Request\DashboardMetricsController::class);
+    Route::get('/reportes/facultades', \App\Http\Controllers\Request\AdminFacultyReportController::class);
+    Route::get('/tarifas', \App\Http\Controllers\Request\RateConfigurationListController::class);
+    Route::put('/tarifas/{id}', \App\Http\Controllers\Request\RateConfigurationUpdateController::class);
+    Route::patch('/estaciones-servicio/{id}/toggle', \App\Http\Controllers\Request\ServiceStationToggleController::class);
+    Route::get('/logs-sistema', \App\Http\Controllers\Request\SystemLogListController::class);
+
+    // Módulo de Administración Global de Recursos (CRUDs Maestros)
+    Route::apiResource('admin/usuarios', \App\Http\Controllers\Request\AdminUserController::class);
+    Route::get('admin/roles', \App\Http\Controllers\Request\AdminRoleController::class);
+    Route::apiResource('admin/vehiculos', \App\Http\Controllers\Request\AdminVehicleController::class);
+    Route::apiResource('admin/choferes', \App\Http\Controllers\Request\AdminDriverController::class);
+    
+    // CRUD Convenios de Estaciones de Servicio
+    Route::get('admin/estaciones', [\App\Http\Controllers\Request\AdminServiceStationController::class, 'index']);
+    Route::post('admin/estaciones', [\App\Http\Controllers\Request\AdminServiceStationController::class, 'store']);
+    Route::put('admin/estaciones/{id}', [\App\Http\Controllers\Request\AdminServiceStationController::class, 'update']);
+    Route::patch('admin/estaciones/{id}/toggle-convenio', [\App\Http\Controllers\Request\AdminServiceStationController::class, 'toggleConvenio']);
+    
+    // CRUD Gestión de Tarifas Institucionales
+    Route::get('admin/tarifas', \App\Http\Controllers\Request\RateConfigurationListController::class);
+    Route::put('admin/tarifas/{id}', \App\Http\Controllers\Request\RateConfigurationUpdateController::class);
+
     // Auxiliares para asignación de recursos
     Route::get('/vehicles', VehicleListController::class);
     Route::get('/drivers', DriverListController::class);
