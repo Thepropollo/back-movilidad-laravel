@@ -16,12 +16,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
     'message',
     'route',
     'entity_id',
+    'audience_role',
+    'user_id',
+    'detail',
 ])]
 class Alert extends Model
 {
     use HasFactory;
 
     protected $table = 'alerts';
+
+    protected function casts(): array
+    {
+        return [
+            'detail' => 'array',
+        ];
+    }
 
     public function readers(): BelongsToMany
     {

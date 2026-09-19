@@ -179,6 +179,21 @@ class DatabaseSeeder extends Seeder
             ]
         );
         $attach($userDual, ['conductor', 'mecanico']);
+        $driverDual = Driver::firstOrCreate(
+            ['user_id' => $userDual->id],
+            [
+                'contract_type' => 'nombramiento',
+                'is_available' => true,
+            ]
+        );
+        DriverLicense::firstOrCreate(
+            ['driver_id' => $driverDual->id],
+            [
+                'license_type' => 'E',
+                'current_points' => 30,
+                'expiration_date' => Carbon::now()->addYears(5)->toDateString(),
+            ]
+        );
 
         $mecanico = User::firstOrCreate(
             ['email' => 'mecanico@uleam.edu.ec'],
@@ -249,6 +264,21 @@ class DatabaseSeeder extends Seeder
                 'fuel_type' => 'diesel',
                 'current_mileage' => 80200,
                 'next_oil_change_mileage' => 80000, // Superó límite
+                'operational_status' => 'disponible',
+            ]
+        );
+
+        // Vehículo extra disponible para probar Dual C+M en paralelo
+        Vehicle::firstOrCreate(
+            ['plate' => 'MBA-2468'],
+            [
+                'brand' => 'Kia',
+                'model' => 'Carnival',
+                'year' => 2023,
+                'color' => 'Azul',
+                'fuel_type' => 'diesel',
+                'current_mileage' => 12000,
+                'next_oil_change_mileage' => 20000,
                 'operational_status' => 'disponible',
             ]
         );

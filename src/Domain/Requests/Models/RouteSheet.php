@@ -76,4 +76,9 @@ class RouteSheet extends Model
     {
         return $this->hasMany(FuelOrder::class, 'route_sheet_id');
     }
+
+    public function deliveryActs(): HasMany
+    {
+        return $this->hasMany(DeliveryReceptionAct::class, 'route_sheet_id');
+    }
 }

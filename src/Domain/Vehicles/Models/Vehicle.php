@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'current_mileage',
     'next_oil_change_mileage',
     'operational_status',
+    'registration_number',
 ])]
 class Vehicle extends Model
 {

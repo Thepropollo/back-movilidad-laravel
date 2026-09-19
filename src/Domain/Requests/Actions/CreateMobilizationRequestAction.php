@@ -27,6 +27,11 @@ class CreateMobilizationRequestAction
             'projected_cost' => $data->projected_cost,
             'status' => $data->status,
             'confirmation_deadline' => now()->addDays(2),
+            'occupant_count' => $data->occupant_count,
+            'communication_number' => $data->communication_number,
+            'activity_type' => $data->activity_type,
+            'academic_program' => $data->academic_program,
+            'public_servants_count' => $data->public_servants_count,
         ]);
 
         RequestWorkflow::record(

@@ -30,6 +30,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'secretaria_approver_id',
     'secretaria_observation',
     'confirmation_deadline',
+    'occupant_count',
+    'communication_number',
+    'activity_type',
+    'academic_program',
+    'public_servants_count',
 ])]
 class MobilizationRequest extends Model
 {
@@ -81,5 +86,10 @@ class MobilizationRequest extends Model
     public function statusHistories(): HasMany
     {
         return $this->hasMany(RequestStatusHistory::class, 'request_id')->orderBy('id');
+    }
+
+    public function generatedDocuments(): HasMany
+    {
+        return $this->hasMany(GeneratedDocument::class, 'request_id')->orderByDesc('id');
     }
 }

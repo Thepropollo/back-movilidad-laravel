@@ -32,6 +32,7 @@ use App\Http\Controllers\Request\FleetManageController;
 use App\Http\Controllers\Request\FuelOrderDespacharController;
 use App\Http\Controllers\Request\FuelOrderShowController;
 use App\Http\Controllers\Request\FuelOrderStoreController;
+use App\Http\Controllers\Request\InstitutionalDocumentController;
 use App\Http\Controllers\Request\MyVehicleController;
 use App\Http\Controllers\Request\ParticipantController;
 use App\Http\Controllers\Request\PendingEvaluationsController;
@@ -85,6 +86,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/solicitudes/{id}/flujo', SolicitudFlujoController::class);
     Route::get('/solicitudes/{id}/participantes', [ParticipantController::class, 'index']);
 
+    Route::get('/documentos/catalogo', [InstitutionalDocumentController::class, 'catalog']);
+    Route::get('/documentos', [InstitutionalDocumentController::class, 'index']);
+    Route::post('/documentos/generar', [InstitutionalDocumentController::class, 'generate']);
+    Route::post('/documentos/adjuntar', [InstitutionalDocumentController::class, 'upload']);
+    Route::post('/documentos/{id}/firmar', [InstitutionalDocumentController::class, 'sign']);
+    Route::get('/documentos/{id}/verificar', [InstitutionalDocumentController::class, 'verify']);
+    Route::get('/documentos/{id}/archivo', [InstitutionalDocumentController::class, 'download']);
+
     // Módulo Secretaría y Jefatura de Transporte
     Route::middleware('role:secretaria,jefe_transporte')->group(function () {
         Route::patch('/solicitudes/{id}/autorizar-secretaria', AutorizarSecretariaController::class);
@@ -119,6 +128,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:secretaria,jefe_transporte,vicerrector,rector,responsable_facultad,docente,solicitante')->group(function () {
         Route::get('/reportes/solicitudes', [ReportsController::class, 'solicitudes']);
         Route::get('/reportes/viajes', [ReportsController::class, 'viajes']);
+        Route::get('/reportes/mensual', [ReportsController::class, 'mensual']);
     });
 
     // Módulo Estudiantes / Pasajeros
@@ -161,10 +171,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Alertas (campana de notificaciones)
-    Route::middleware('role:secretaria,jefe_transporte,conductor,chofer,mecanico')->group(function () {
-        Route::get('/alertas', [AlertsController::class, 'index']);
-        Route::post('/alertas/{id}/leida', [AlertsController::class, 'markRead']);
-    });
+    Route::get('/alertas', [AlertsController::class, 'index']);
+    Route::post('/alertas/{id}/leida', [AlertsController::class, 'markRead']);
 
     // Paradas, Monitoreo y Evaluaciones
     Route::get('/hojas-ruta/{id}/paradas', [RouteSheetStopController::class, 'index']);
@@ -178,6 +186,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reportes/kpis', AdminKpiController::class);
     Route::get('/dashboard/metrics', DashboardMetricsController::class);
     Route::get('/reportes/facultades', AdminFacultyReportController::class);
+    Route::get('/reportes/aceite', [ReportsController::class, 'aceite']);
+    Route::get('/reportes/novedades', [ReportsController::class, 'novedades']);
     Route::get('/tarifas', RateConfigurationListController::class);
     Route::post('/tarifas', RateConfigurationStoreController::class);
     Route::put('/tarifas/{id}', RateConfigurationUpdateController::class);

@@ -32,6 +32,11 @@ class SolicitudStoreController extends Controller
             'return_date' => 'required|date|after_or_equal:departure_date',
             'return_time' => 'required|date_format:H:i',
             'declaracion_fondos_aceptada' => 'nullable|boolean',
+            'occupant_count' => 'nullable|integer|min:1|max:80',
+            'communication_number' => 'nullable|string|max:80',
+            'activity_type' => 'nullable|string|max:50',
+            'academic_program' => 'nullable|string|max:150',
+            'public_servants_count' => 'nullable|integer|min:0|max:80',
         ], [
             'departure_date.after_or_equal' => 'La fecha de salida no puede ser anterior a la fecha de hoy.',
             'return_date.after_or_equal' => 'La fecha de retorno debe ser igual o posterior a la fecha de salida.',

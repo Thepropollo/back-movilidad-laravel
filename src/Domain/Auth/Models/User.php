@@ -13,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 use InvalidArgumentException;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['national_id', 'first_name', 'last_name', 'email', 'password', 'faculty_institution', 'role_id', 'is_active'])]
+#[Fillable(['national_id', 'first_name', 'last_name', 'email', 'password', 'faculty_institution', 'job_title', 'role_id', 'is_active'])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {

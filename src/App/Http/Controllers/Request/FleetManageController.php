@@ -125,6 +125,7 @@ class FleetManageController extends Controller
             'current_mileage' => 'required|integer|min:0',
             'next_oil_change_mileage' => 'required|integer|min:0',
             'operational_status' => 'nullable|in:disponible,en_viaje,en_taller,inactivo',
+            'registration_number' => 'nullable|string|max:40',
         ]);
 
         $vehicle = Vehicle::create([
@@ -152,6 +153,7 @@ class FleetManageController extends Controller
             'current_mileage' => 'sometimes|integer|min:0',
             'next_oil_change_mileage' => 'sometimes|integer|min:0',
             'operational_status' => 'sometimes|in:disponible,en_viaje,en_taller,inactivo',
+            'registration_number' => 'sometimes|nullable|string|max:40',
         ]);
 
         $vehicle->update($data);

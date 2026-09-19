@@ -21,7 +21,12 @@ class MobilizationRequestData
         public ?string $return_time,
         public int $estimated_days,
         public float $projected_cost,
-        public string $status = 'pendiente'
+        public string $status = 'pendiente',
+        public int $occupant_count = 1,
+        public ?string $communication_number = null,
+        public ?string $activity_type = null,
+        public ?string $academic_program = null,
+        public int $public_servants_count = 0,
     ) {}
 
     /**
@@ -44,7 +49,12 @@ class MobilizationRequestData
             return_time: $request->input('return_time'),
             estimated_days: $estimatedDays,
             projected_cost: $projectedCost,
-            status: 'pendiente_secretaria'
+            status: 'pendiente_secretaria',
+            occupant_count: (int) $request->input('occupant_count', 1),
+            communication_number: $request->input('communication_number'),
+            activity_type: $request->input('activity_type'),
+            academic_program: $request->input('academic_program'),
+            public_servants_count: (int) $request->input('public_servants_count', 0),
         );
     }
 }
