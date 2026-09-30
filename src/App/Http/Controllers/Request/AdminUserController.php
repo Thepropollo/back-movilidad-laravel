@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
 use Domain\Auth\Actions\UpdateUserAction;
+use Domain\Auth\Models\Driver;
 use Domain\Auth\Models\SystemLog;
 use Domain\Auth\Models\User;
 use Domain\Requests\Models\DeliveryReceptionAct;
@@ -164,8 +165,9 @@ class AdminUserController extends Controller
             ->orWhere('rectorate_approver_id', $user->id)
             ->exists();
 
-        $hasRouteSheets = RouteSheet::where('driver_id', $user->id)
-            ->orWhere('transport_chief_id', $user->id)
+        $driverId = Driver::where('user_id', $user->id)->value('id');
+        $hasRouteSheets = RouteSheet::where('transport_chief_id', $user->id)
+            ->when($driverId, fn ($query) => $query->orWhere('driver_id', $driverId))
             ->exists();
 
         $hasActs = DeliveryReceptionAct::where('mechanic_or_guard_id', $user->id)->exists();
