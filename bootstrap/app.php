@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
@@ -51,3 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 500);
         });
     })->create();
+
+$app->useAppPath(dirname(__DIR__).'/src/App');
+
+return $app;
