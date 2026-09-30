@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use Domain\Requests\Actions\CreateRouteSheetStopAction;
 use Domain\Auth\Models\Driver;
 use Domain\Requests\Models\RouteSheet;
-use Domain\Requests\Models\RouteSheetStop;
 use Illuminate\Http\Request;
 
 class RouteSheetStopController extends Controller
@@ -18,7 +18,7 @@ class RouteSheetStopController extends Controller
         return response()->json($sheet->stops);
     }
 
-    public function store(Request $request, int $id)
+    public function store(Request $request, int $id, CreateRouteSheetStopAction $action)
     {
         $sheet = RouteSheet::findOrFail($id);
         $this->authorizeSheet($request, $sheet, true);
@@ -33,24 +33,7 @@ class RouteSheetStopController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $sequence = (int) RouteSheetStop::where('route_sheet_id', $id)->max('sequence') + 1;
-
-        $stop = RouteSheetStop::create([
-            'route_sheet_id' => $id,
-            'sequence' => $sequence,
-            'location' => $data['location'],
-            'visited_canton' => $data['location'],
-            'departure_at' => $data['departure_at'] ?? null,
-            'arrival_time' => $data['arrival_time'] ?? now(),
-            'odometer_km' => $data['odometer_km'] ?? null,
-            'latitude' => $data['latitude'] ?? null,
-            'longitude' => $data['longitude'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ]);
-
-        if (! empty($data['odometer_km'])) {
-            $sheet->update(['final_mileage' => $data['odometer_km']]);
-        }
+        $stop = $action->execute((int) $sheet->id, (int) $request->user()->id, $data);
 
         return response()->json(['message' => 'Parada registrada.', 'stop' => $stop], 201);
     }
@@ -58,12 +41,12 @@ class RouteSheetStopController extends Controller
     private function authorizeSheet(Request $request, RouteSheet $sheet, bool $write = false): void
     {
         $user = $request->user();
-        if ($user->hasRole(['secretaria', 'jefe_transporte'])) {
+        if (! $write && $user->hasRole(['secretaria', 'jefe_transporte'])) {
             return;
         }
 
         $driver = Driver::where('user_id', $user->id)->first();
-        if ($driver && $sheet->driver_id === $driver->id) {
+        if ($driver && (int) $sheet->driver_id === (int) $driver->id) {
             return;
         }
 

@@ -13,6 +13,7 @@ use Domain\Vehicles\Models\Vehicle;
 use Domain\Workshop\Models\IssueLog;
 use Domain\Workshop\Models\WorkshopWorkOrder;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class GenerateInstitutionalDocumentAction
@@ -49,7 +50,7 @@ class GenerateInstitutionalDocumentAction
         $binary = $this->buildPdf($type, $requestId, $workOrderId, $issueLogId, $filters);
         $hash = hash('sha256', $binary);
 
-        $filename = $type.'-'.now()->format('YmdHis').'.pdf';
+        $filename = $type.'-'.Str::uuid().'.pdf';
         $path = 'documentos/'.$filename;
         Storage::disk('local')->put($path, $binary);
 

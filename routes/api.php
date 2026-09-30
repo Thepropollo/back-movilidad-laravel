@@ -69,7 +69,7 @@ Route::middleware('throttle:10,1')->group(function () {
     Route::post('/register', RegisterController::class);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/logout', LogoutController::class);
     Route::get('/me', MeController::class);
 
@@ -183,31 +183,34 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mis-evaluaciones-pendientes', PendingEvaluationsController::class);
 
     // Módulo de Administración General, Reportes y Auditoría
-    Route::get('/reportes/kpis', AdminKpiController::class);
     Route::get('/dashboard/metrics', DashboardMetricsController::class);
-    Route::get('/reportes/facultades', AdminFacultyReportController::class);
     Route::get('/reportes/aceite', [ReportsController::class, 'aceite']);
     Route::get('/reportes/novedades', [ReportsController::class, 'novedades']);
-    Route::get('/tarifas', RateConfigurationListController::class);
-    Route::post('/tarifas', RateConfigurationStoreController::class);
-    Route::put('/tarifas/{id}', RateConfigurationUpdateController::class);
-    Route::patch('/estaciones-servicio/{id}/toggle', ServiceStationToggleController::class);
-    Route::get('/logs-sistema', SystemLogListController::class);
 
     // Módulo de Administración Global de Recursos (CRUDs Maestros)
-    Route::apiResource('admin/usuarios', AdminUserController::class);
-    Route::get('admin/roles', AdminRoleController::class);
-    Route::apiResource('admin/vehiculos', AdminVehicleController::class);
-    Route::apiResource('admin/choferes', AdminDriverController::class);
+    Route::middleware('role:secretaria')->group(function () {
+        Route::get('/reportes/kpis', AdminKpiController::class);
+        Route::get('/reportes/facultades', AdminFacultyReportController::class);
+        Route::get('/tarifas', RateConfigurationListController::class);
+        Route::post('/tarifas', RateConfigurationStoreController::class);
+        Route::put('/tarifas/{id}', RateConfigurationUpdateController::class);
+        Route::patch('/estaciones-servicio/{id}/toggle', ServiceStationToggleController::class);
+        Route::get('/logs-sistema', SystemLogListController::class);
 
-    // CRUD Convenios de Estaciones de Servicio
-    Route::get('admin/estaciones', [AdminServiceStationController::class, 'index']);
-    Route::post('admin/estaciones', [AdminServiceStationController::class, 'store']);
-    Route::put('admin/estaciones/{id}', [AdminServiceStationController::class, 'update']);
-    Route::patch('admin/estaciones/{id}/toggle-convenio', [AdminServiceStationController::class, 'toggleConvenio']);
+        Route::apiResource('admin/usuarios', AdminUserController::class);
+        Route::get('admin/roles', AdminRoleController::class);
+        Route::apiResource('admin/vehiculos', AdminVehicleController::class);
+        Route::apiResource('admin/choferes', AdminDriverController::class);
 
-    // CRUD Gestión de Tarifas Institucionales
-    Route::get('admin/tarifas', RateConfigurationListController::class);
-    Route::post('admin/tarifas', RateConfigurationStoreController::class);
-    Route::put('admin/tarifas/{id}', RateConfigurationUpdateController::class);
+        // CRUD Convenios de Estaciones de Servicio
+        Route::get('admin/estaciones', [AdminServiceStationController::class, 'index']);
+        Route::post('admin/estaciones', [AdminServiceStationController::class, 'store']);
+        Route::put('admin/estaciones/{id}', [AdminServiceStationController::class, 'update']);
+        Route::patch('admin/estaciones/{id}/toggle-convenio', [AdminServiceStationController::class, 'toggleConvenio']);
+
+        // CRUD Gestión de Tarifas Institucionales
+        Route::get('admin/tarifas', RateConfigurationListController::class);
+        Route::post('admin/tarifas', RateConfigurationStoreController::class);
+        Route::put('admin/tarifas/{id}', RateConfigurationUpdateController::class);
+    });
 });

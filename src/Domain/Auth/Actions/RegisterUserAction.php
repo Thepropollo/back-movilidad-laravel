@@ -7,25 +7,12 @@ use Domain\Auth\Models\Role;
 use Domain\Auth\Models\User;
 use Domain\Auth\Support\RoleCatalog;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class RegisterUserAction
 {
-    /** Roles canónicos permitidos en auto-registro (nunca privilegiados). */
-    private const ALLOWED = [
-        RoleCatalog::DOCENTE,
-        RoleCatalog::ESTUDIANTE,
-    ];
-
     public function execute(UserData $data): User
     {
-        $roleName = RoleCatalog::canonicalize($data->role_name) ?? RoleCatalog::DOCENTE;
-
-        if (! in_array($roleName, self::ALLOWED, true)) {
-            throw ValidationException::withMessages([
-                'role_name' => ['Rol no permitido para registro público.'],
-            ]);
-        }
+        $roleName = RoleCatalog::publicRegistrationRole();
 
         // Ignorar role_id del cliente para evitar escalada de privilegios.
         $role = Role::query()->where('name', $roleName)->first()
@@ -47,7 +34,7 @@ class RegisterUserAction
             'role_id' => $role->id,
         ]);
 
-        $user->roles()->syncWithoutDetaching([$role->id]);
+        $user->syncRoleNames([$roleName], $roleName);
 
         return $user->load(['role', 'roles']);
     }

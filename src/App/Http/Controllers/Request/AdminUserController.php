@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use Domain\Auth\Actions\UpdateUserAction;
+use Domain\Auth\Models\Driver;
 use Domain\Auth\Models\SystemLog;
 use Domain\Auth\Models\User;
 use Domain\Requests\Models\DeliveryReceptionAct;
@@ -10,13 +12,14 @@ use Domain\Requests\Models\MobilizationRequest;
 use Domain\Requests\Models\RouteSheet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class AdminUserController extends Controller
 {
     public function index(Request $request)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -48,7 +51,7 @@ class AdminUserController extends Controller
     public function store(Request $request)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -57,7 +60,7 @@ class AdminUserController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => 'required|email|max:100|unique:users,email',
-            'password' => 'required|string|min:6',
+            'password' => ['required', 'string', Password::min(12)->letters()->numbers()],
             'faculty_institution' => 'required|string|max:150',
             'role_id' => 'required|exists:roles,id',
         ], [
@@ -92,10 +95,10 @@ class AdminUserController extends Controller
         ], 210);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, UpdateUserAction $updateUser)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -106,7 +109,7 @@ class AdminUserController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => "required|email|max:100|unique:users,email,{$id}",
-            'password' => 'nullable|string|min:6',
+            'password' => ['nullable', 'string', Password::min(12)->letters()->numbers()],
             'faculty_institution' => 'required|string|max:150',
             'role_id' => 'required|exists:roles,id',
             'is_active' => 'required|boolean',
@@ -121,15 +124,18 @@ class AdminUserController extends Controller
             'last_name' => $request->input('last_name'),
             'email' => $request->input('email'),
             'faculty_institution' => $request->input('faculty_institution'),
-            'role_id' => $request->input('role_id'),
-            'is_active' => $request->input('is_active'),
         ];
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->input('password'));
         }
 
-        $user->update($data);
+        $user = $updateUser->execute(
+            $user,
+            $data,
+            (int) $request->input('role_id'),
+            (bool) $request->input('is_active')
+        );
 
         SystemLog::create([
             'user_id' => $admin->id,
@@ -148,7 +154,7 @@ class AdminUserController extends Controller
     public function destroy(Request $request, $id)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -159,8 +165,9 @@ class AdminUserController extends Controller
             ->orWhere('rectorate_approver_id', $user->id)
             ->exists();
 
-        $hasRouteSheets = RouteSheet::where('driver_id', $user->id)
-            ->orWhere('transport_chief_id', $user->id)
+        $driverId = Driver::where('user_id', $user->id)->value('id');
+        $hasRouteSheets = RouteSheet::where('transport_chief_id', $user->id)
+            ->when($driverId, fn ($query) => $query->orWhere('driver_id', $driverId))
             ->exists();
 
         $hasActs = DeliveryReceptionAct::where('mechanic_or_guard_id', $user->id)->exists();

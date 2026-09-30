@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Domain\Workshop\Models\SupplyInventory;
 use Domain\Workshop\Models\WorkOrderSupplyProvision;
 use Domain\Workshop\Models\WorkshopWorkOrder;
+use Domain\Vehicles\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,8 +21,8 @@ class CloseWorkOrderAction
     {
         return DB::transaction(function () use ($workOrderId, $suppliesUsed) {
             // 1. Obtener la orden de trabajo
-            $workOrder = WorkshopWorkOrder::with(['vehicle', 'issueLog'])->findOrFail($workOrderId);
-            $vehicle = $workOrder->vehicle;
+            $workOrder = WorkshopWorkOrder::query()->with('issueLog')->lockForUpdate()->findOrFail($workOrderId);
+            $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($workOrder->vehicle_id);
 
             if ($workOrder->exit_date) {
                 throw ValidationException::withMessages([
@@ -31,7 +32,7 @@ class CloseWorkOrderAction
 
             // 2. Procesar los insumos utilizados
             foreach ($suppliesUsed as $item) {
-                $supply = SupplyInventory::findOrFail($item['id']);
+                $supply = SupplyInventory::query()->lockForUpdate()->findOrFail($item['id']);
 
                 if ($supply->current_stock < $item['quantity']) {
                     throw ValidationException::withMessages([
@@ -57,7 +58,11 @@ class CloseWorkOrderAction
 
             // 4. Reglas del Vehículo al salir del taller
             $vehicleData = [
-                'operational_status' => 'disponible',
+                'operational_status' => WorkshopWorkOrder::query()
+                    ->where('vehicle_id', $vehicle->id)
+                    ->whereNull('exit_date')
+                    ->where('id', '!=', $workOrder->id)
+                    ->exists() ? 'en_taller' : 'disponible',
             ];
 
             if ($workOrder->maintenance_type === 'cambio_aceite') {
@@ -72,6 +77,8 @@ class CloseWorkOrderAction
                     'status' => 'solventado',
                 ]);
             }
+
+            $workOrder->setRelation('vehicle', $vehicle);
 
             return $workOrder;
         });

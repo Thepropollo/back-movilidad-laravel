@@ -1,0 +1,4396 @@
+openapi: 3.1.0
+info:
+  title: Sistema de Gestión de Transporte y Movilización Institucional - ULEAM
+  description: "# API del Sistema de Gestión de Transporte y Flota Institucional (ULEAM)\n\nBienvenido\
+    \ a la documentación oficial e interactiva de la API REST del Sistema de Transporte de la Universidad\
+    \ Laica Eloy Alfaro de Manabí (ULEAM), impulsada por **Scalar**.\n\n---\n\n## \U0001F3DB️ Propósito\
+    \ y Alcance\nEsta plataforma automatiza el ciclo integral de transporte universitario, desde la solicitud\
+    \ docente hasta la liquidación final de viáticos y auditoría técnica:\n1. **Gestión de Solicitudes:**\
+    \ Movilizaciones académicas internas (dentro de la provincia) y externas (nacionales).\n2. **Flujo\
+    \ de Autorizaciones:** Filtro por Secretaría/Jefatura de Transporte y Vicerrectorado Académico/Rectorado.\n\
+    3. **Planificación y Asignación:** Generación de hojas de ruta, asignación de choferes, vehículos\
+    \ y agenda operativa.\n4. **Inspecciones y Mantenimiento Técnico:** Checklist digital de componentes,\
+    \ neumáticos, actas de entrega/recepción en garita y órdenes de taller.\n5. **Combustible:** Convenios\
+    \ con estaciones de servicio y órdenes de abastecimiento con código de validación.\n6. **Liquidación\
+    \ y Viáticos:** Cálculo transparente de horas extras y subsistencias bajo normativa institucional.\n\
+    7. **Documentos Oficiales y registro de firma de aplicación (Ed25519 con Sodium disponible; fallback\
+    \ HMAC usando APP_KEY):** Trazabilidad documental con sellos de tiempo, firmas criptográficas SHA-256\
+    \ e interoperabilidad de códigos de calidad (PST-01-F-003, PST-01-F-006, PST-01-F-004.1, PST-01-F-003-OT,\
+    \ PAM-04-F-007).\n\n---\n\n## \U0001F510 Autenticación y Seguridad\nLa API utiliza **Laravel Sanctum**\
+    \ para autenticación mediante Bearer Tokens.\n- Para autenticarse, envíe una petición `POST /api/login`\
+    \ con sus credenciales.\n- En las peticiones posteriores, incluya la cabecera HTTP:\n  ```http\n \
+    \ Authorization: Bearer <tu_token_aqui>\n  Accept: application/json\n  ```\n\n### Cuentas Semilla\
+    \ de Prueba (Entorno de Desarrollo)\n| Rol | Correo Institucional | Contraseña | Responsabilidad |\n\
+    | :--- | :--- | :--- | :--- |\n| **Secretaría / Admin** | `secretaria@uleam.edu.ec` | `password` |\
+    \ Autorizaciones, hojas de ruta, choferes, flota, combustible y compensaciones. |\n| **Docente / Solicitante**\
+    \ | `docente@uleam.edu.ec` | `password` | Creación de solicitudes, manifiesto de estudiantes y seguimiento.\
+    \ |\n| **Vicerrectorado** | `vicerrector@uleam.edu.ec` | `password` | Aprobación de viajes externos\
+    \ a escala nacional. |\n| **Conductor / Chofer** | `conductor@uleam.edu.ec` | `password` | Aceptación\
+    \ de viajes, registro de paradas, novedad en ruta y viáticos. |\n| **Mecánico de Patio** | `mecanico@uleam.edu.ec`\
+    \ | `password` | Inspecciones pre-operacionales, actas garita y órdenes de mantenimiento. |\n| **Facultad**\
+    \ | `facultad@uleam.edu.ec` | `password` | Supervisión de movilizaciones adscritas a la unidad académica.\
+    \ |\n| **Estudiante** | `estudiante@uleam.edu.ec` | `password` | Confirmación de participación como\
+    \ pasajero. |\n La firma se guarda como metadato separado y no queda embebida ni certificada por una\
+    \ autoridad en el PDF."
+  version: 1.0.0
+  contact:
+    name: Dirección de Transporte y Mantenimiento - ULEAM
+    email: transporte@uleam.edu.ec
+    url: https://www.uleam.edu.ec
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+- url: http://127.0.0.1:8000
+  description: Servidor Backend de Desarrollo (Laravel)
+- url: http://localhost:5173
+  description: Proxy Frontend de Desarrollo (Vite)
+tags:
+- name: Autenticación
+  description: Inicio de sesión, registro público, cierre de sesión y perfil del usuario autenticado.
+- name: Solicitudes de Movilización
+  description: Creación, consulta, flujo de trazabilidad y autorizaciones de solicitudes.
+- name: Participantes y Pasajeros
+  description: Búsqueda de alumnos, invitaciones para viajes y confirmación de asistencia.
+- name: Hojas de Ruta y Agenda
+  description: Emisión de hojas de ruta, respuesta de chofer, paradas GPS y calendario semanal.
+- name: Flota y Conductores
+  description: Control de vehículos, documentos legales (SOAT, matrícula), choferes y asignación.
+- name: Combustible y Estaciones
+  description: Convenios con estaciones de servicio y órdenes de combustible con despacho.
+- name: Compensaciones y Viáticos
+  description: Cálculo, liquidación, aprobación y confirmación de horas extras y viáticos.
+- name: Taller y Garita
+  description: Actas de entrega-recepción, inspecciones pre/post viaje, novedades y órdenes de trabajo.
+- name: Documentos y Firma Digital
+  description: Generación de formatos PDF de calidad con hash SHA-256, firmas digitales y verificación
+    pública.
+- name: Alertas y Notificaciones
+  description: Campana de notificaciones operativas en tiempo real y lectura de avisos.
+- name: Monitoreo y Evaluaciones
+  description: Seguimiento satelital en mapas y evaluación de calidad del servicio por pasajeros.
+- name: Reportes y Métricas
+  description: KPIs institucionales, reportes consolidados de flota, viajes, combustible y auditoría.
+- name: Tarifas Institucionales
+  description: Configuración de factores de costo por kilómetro, horas extras y pernoctes.
+- name: Administración Maestra
+  description: Mantenimiento maestro de usuarios, roles, catálogo de vehículos y choferes.
+paths:
+  /api/login:
+    post:
+      tags:
+      - Autenticación
+      summary: Iniciar sesión y obtener token Sanctum
+      description: Valida las credenciales del usuario y genera un nuevo bearer token con sus roles asignados.
+      operationId: post_api_login
+      responses:
+        '200':
+          description: Sesión iniciada con éxito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Sesión iniciada exitosamente
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      access_token:
+                        type: string
+                      token_type:
+                        type: string
+                        example: Bearer
+        '401':
+          description: Credenciales inválidas
+        '422':
+          description: Error de validación en campos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+  /api/register:
+    post:
+      tags:
+      - Autenticación
+      summary: Registro público de estudiantes y solicitantes
+      description: Permite registrar nuevos usuarios con rol estudiante o docente en el sistema.
+      operationId: post_api_register
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - national_id
+              - first_name
+              - last_name
+              - email
+              - password
+              - password_confirmation
+              properties:
+                national_id:
+                  type: string
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                password_confirmation:
+                  type: string
+                faculty_institution:
+                  type: string
+  /api/logout:
+    post:
+      tags:
+      - Autenticación
+      summary: Cerrar sesión actual
+      description: Revoca el token actual de autenticación del usuario.
+      operationId: post_api_logout
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/me:
+    get:
+      tags:
+      - Autenticación
+      summary: Obtener perfil del usuario autenticado
+      description: Retorna la información del usuario en sesión junto con sus roles canónicos y permisos.
+      operationId: get_api_me
+      responses:
+        '200':
+          description: Datos de perfil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  roles:
+                    type: array
+                    items:
+                      type: string
+      security:
+      - bearerAuth: []
+  /api/solicitudes:
+    get:
+      tags:
+      - Solicitudes de Movilización
+      summary: Listar solicitudes de movilización
+      description: Obtiene las solicitudes filtradas según el rol del usuario (docente solo ve las suyas,
+        secretaría todas).
+      operationId: get_api_solicitudes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+        description: Filtrar por estado (pendiente, autorizado, aprobado, asignado, etc.)
+      - name: from_date
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: to_date
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+    post:
+      tags:
+      - Solicitudes de Movilización
+      summary: Crear nueva solicitud de movilización
+      description: Permite a un docente o autoridad de facultad generar una solicitud institucional.
+      operationId: post_api_solicitudes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - origin
+              - destination
+              - start_date
+              - end_date
+              - reason
+              - mobilization_type
+              - passenger_count
+              properties:
+                origin:
+                  type: string
+                  example: Campus Manta - Matriz
+                destination:
+                  type: string
+                  example: Quito - Sede PUCE
+                start_date:
+                  type: string
+                  format: date
+                  example: '2026-10-15'
+                end_date:
+                  type: string
+                  format: date
+                  example: '2026-10-18'
+                start_time:
+                  type: string
+                  example: 06:00
+                end_time:
+                  type: string
+                  example: '20:00'
+                reason:
+                  type: string
+                  example: Participación en Congreso Nacional de Software.
+                mobilization_type:
+                  type: string
+                  enum:
+                  - interna
+                  - externa
+                  example: externa
+                passenger_count:
+                  type: integer
+                  example: 22
+                destination_latitude:
+                  type: number
+                  example: -0.1807
+                destination_longitude:
+                  type: number
+                  example: -78.4678
+                student_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example:
+                  - 14
+                  - 15
+                  - 16
+  /api/solicitudes/{id}/flujo:
+    get:
+      tags:
+      - Solicitudes de Movilización
+      summary: Consultar trazabilidad y fases del ciclo de vida
+      description: Devuelve el historial cronológico y diagrama de fases (autorizado, aprobado, asignado,
+        en ruta).
+      operationId: get_api_solicitudes_id_flujo
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/solicitudes/{id}/autorizar-secretaria:
+    patch:
+      tags:
+      - Solicitudes de Movilización
+      summary: Autorizar o rechazar solicitud por Secretaría
+      description: Secretaría de Transporte evalúa la disponibilidad vehicular y autoriza la prosecución
+        del trámite.
+      operationId: patch_api_solicitudes_id_autorizar-secretaria
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - authorized
+              properties:
+                authorized:
+                  type: boolean
+                  example: true
+                observation:
+                  type: string
+                  example: Disponibilidad de bus interprovincial confirmada.
+  /api/solicitudes/{id}/aprobar-rectorado:
+    patch:
+      tags:
+      - Solicitudes de Movilización
+      summary: Aprobación superior por Vicerrectorado / Rectorado
+      description: Requisito mandatorio para solicitudes de tipo 'externa' (viajes fuera de Manabí).
+      operationId: patch_api_solicitudes_id_aprobar-rectorado
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - approved
+              properties:
+                approved:
+                  type: boolean
+                  example: true
+                observation:
+                  type: string
+                  example: Comisión académica aprobada con fondos institucionales.
+  /api/estudiantes:
+    get:
+      tags:
+      - Participantes y Pasajeros
+      summary: Buscar estudiantes universitarios para invitar a viajes
+      description: Permite buscar alumnos por nombre, apellido, correo institucional o cédula.
+      operationId: get_api_estudiantes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+        example: Zambrano
+  /api/solicitudes/{id}/participantes:
+    get:
+      tags:
+      - Participantes y Pasajeros
+      summary: Listar participantes de una solicitud
+      description: Listar participantes de una solicitud
+      operationId: get_api_solicitudes_id_participantes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      tags:
+      - Participantes y Pasajeros
+      summary: Agregar estudiantes o participantes al manifiesto
+      description: Agregar estudiantes o participantes al manifiesto
+      operationId: post_api_solicitudes_id_participantes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  example: 25
+                student_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example:
+                  - 25
+                  - 26
+                  - 27
+  /api/mis-invitaciones:
+    get:
+      tags:
+      - Participantes y Pasajeros
+      summary: Invitaciones recibidas por el estudiante autenticado
+      description: El estudiante visualiza los viajes a los cuales ha sido convocado por sus docentes.
+      operationId: get_api_mis-invitaciones
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/participantes/{id}/responder:
+    patch:
+      tags:
+      - Participantes y Pasajeros
+      summary: Aceptar o rechazar invitación a movilización
+      description: Aceptar o rechazar invitación a movilización
+      operationId: patch_api_participantes_id_responder
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - aceptado
+                  - rechazado
+                  example: aceptado
+                reason:
+                  type: string
+                  example: Cruce de horario con examen de Cálculo.
+  /api/hojas-ruta:
+    post:
+      tags:
+      - Hojas de Ruta y Agenda
+      summary: Emitir hoja de ruta y asignar chofer/vehículo
+      description: Secretaría formaliza la asignación vehicular emitiendo la hoja de ruta oficial (PST-01-F-006).
+      operationId: post_api_hojas-ruta
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - solicitud_id
+              - driver_id
+              - vehicle_id
+              - scheduled_departure_date
+              - scheduled_departure_time
+              properties:
+                solicitud_id:
+                  type: integer
+                  example: 10
+                driver_id:
+                  type: integer
+                  example: 2
+                vehicle_id:
+                  type: integer
+                  example: 3
+                scheduled_departure_date:
+                  type: string
+                  format: date
+                  example: '2026-10-15'
+                scheduled_departure_time:
+                  type: string
+                  example: 06:00
+  /api/hojas-ruta/{id}/reasignar:
+    patch:
+      tags:
+      - Hojas de Ruta y Agenda
+      summary: Reasignar chofer o vehículo ante contingencias
+      description: Reasignar chofer o vehículo ante contingencias
+      operationId: patch_api_hojas-ruta_id_reasignar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                driver_id:
+                  type: integer
+                  example: 4
+                vehicle_id:
+                  type: integer
+                  example: 5
+                motive:
+                  type: string
+                  example: Falla mecánica imprevista en bus principal.
+  /api/hojas-ruta/{id}/responder:
+    patch:
+      tags:
+      - Hojas de Ruta y Agenda
+      summary: Respuesta del conductor ante asignación de hoja de ruta
+      description: El chofer acepta o rechaza la asignación programada.
+      operationId: patch_api_hojas-ruta_id_responder
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - aceptado
+                  - rechazado
+                  example: aceptado
+                rejection_reason:
+                  type: string
+                  example: Licencia médica justificada
+  /api/hojas-ruta/{id}/paradas:
+    get:
+      tags:
+      - Hojas de Ruta y Agenda
+      summary: Listar paradas y waypoints registrados en la hoja de ruta
+      description: Listar paradas y waypoints registrados en la hoja de ruta
+      operationId: get_api_hojas-ruta_id_paradas
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      tags:
+      - Hojas de Ruta y Agenda
+      summary: Registrar parada o hito geográfico durante el viaje
+      description: Registrar parada o hito geográfico durante el viaje
+      operationId: post_api_hojas-ruta_id_paradas
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - location_name
+              - latitude
+              - longitude
+              properties:
+                location_name:
+                  type: string
+                  example: Peaje Santo Domingo
+                latitude:
+                  type: number
+                  example: -0.2523
+                longitude:
+                  type: number
+                  example: -79.1754
+                mileage:
+                  type: number
+                  example: 45310.0
+                arrival_time:
+                  type: string
+                  example: '10:45'
+                notes:
+                  type: string
+                  example: Parada técnica para control de neumáticos
+  /api/agenda:
+    get:
+      tags:
+      - Hojas de Ruta y Agenda
+      summary: Consultar agenda y disponibilidad semanal de flota y choferes
+      description: Consultar agenda y disponibilidad semanal de flota y choferes
+      operationId: get_api_agenda
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: start_date
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: end_date
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: driver_id
+        in: query
+        schema:
+          type: integer
+      - name: vehicle_id
+        in: query
+        schema:
+          type: integer
+  /api/vehicles:
+    get:
+      tags:
+      - Flota y Conductores
+      summary: Listar vehículos institucionales
+      description: Listar vehículos institucionales
+      operationId: get_api_vehicles
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+      - name: search
+        in: query
+        schema:
+          type: string
+    post:
+      tags:
+      - Flota y Conductores
+      summary: Registrar nuevo vehículo en la flota institucional
+      description: Registrar nuevo vehículo en la flota institucional
+      operationId: post_api_vehicles
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - plate_number
+              - brand
+              - model
+              - year
+              - capacity
+              - fuel_type
+              properties:
+                plate_number:
+                  type: string
+                  example: MEA-2045
+                brand:
+                  type: string
+                  example: Chevrolet
+                model:
+                  type: string
+                  example: D-Max
+                year:
+                  type: integer
+                  example: 2024
+                capacity:
+                  type: integer
+                  example: 5
+                fuel_type:
+                  type: string
+                  enum:
+                  - diesel
+                  - extra
+                  - super
+                  example: diesel
+                current_mileage:
+                  type: number
+                  example: 12500.0
+  /api/vehicles/{id}:
+    patch:
+      tags:
+      - Flota y Conductores
+      summary: Actualizar ficha del vehículo
+      description: Actualizar ficha del vehículo
+      operationId: patch_api_vehicles_id
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/vehicles/{id}/documentos:
+    patch:
+      tags:
+      - Flota y Conductores
+      summary: Actualizar vigencia de documentos legales (SOAT, Matrícula, RTV)
+      description: Actualizar vigencia de documentos legales (SOAT, Matrícula, RTV)
+      operationId: patch_api_vehicles_id_documentos
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                soat_expires_at:
+                  type: string
+                  format: date
+                  example: '2027-06-30'
+                matricula_expires_at:
+                  type: string
+                  format: date
+                  example: '2027-08-31'
+                rev_tecnica_expires_at:
+                  type: string
+                  format: date
+                  example: '2027-05-15'
+  /api/drivers:
+    get:
+      tags:
+      - Flota y Conductores
+      summary: Listar nómina de conductores
+      description: Listar nómina de conductores
+      operationId: get_api_drivers
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Flota y Conductores
+      summary: Vincular usuario como conductor institucional
+      description: Vincular usuario como conductor institucional
+      operationId: post_api_drivers
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user_id
+              - license_number
+              - license_type
+              - license_expiration
+              properties:
+                user_id:
+                  type: integer
+                  example: 8
+                license_number:
+                  type: string
+                  example: '1308765432'
+                license_type:
+                  type: string
+                  example: Tipo E
+                license_expiration:
+                  type: string
+                  format: date
+                  example: '2028-04-15'
+  /api/drivers/{id}:
+    patch:
+      tags:
+      - Flota y Conductores
+      summary: Actualizar datos del conductor
+      description: Actualizar datos del conductor
+      operationId: patch_api_drivers_id
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/mi-vehiculo:
+    get:
+      tags:
+      - Flota y Conductores
+      summary: Consultar vehículo actualmente asignado al conductor autenticado
+      description: Consultar vehículo actualmente asignado al conductor autenticado
+      operationId: get_api_mi-vehiculo
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/mis-viajes:
+    get:
+      tags:
+      - Flota y Conductores
+      summary: Historial de viajes del conductor o visión integral para secretaría
+      description: Historial de viajes del conductor o visión integral para secretaría
+      operationId: get_api_mis-viajes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/estaciones-servicio:
+    get:
+      tags:
+      - Combustible y Estaciones
+      summary: Listar estaciones de servicio activas con convenio institucional
+      description: Listar estaciones de servicio activas con convenio institucional
+      operationId: get_api_estaciones-servicio
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Combustible y Estaciones
+      summary: Registrar nueva estación de servicio
+      description: Registrar nueva estación de servicio
+      operationId: post_api_estaciones-servicio
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - address
+              - city
+              properties:
+                name:
+                  type: string
+                  example: Petroecuador Aeropuerto
+                address:
+                  type: string
+                  example: Vía Jaramijó Km 2
+                city:
+                  type: string
+                  example: Manta
+                phone:
+                  type: string
+                  example: 052987654
+                has_agreement:
+                  type: boolean
+                  example: true
+  /api/estaciones-servicio/{id}:
+    patch:
+      tags:
+      - Combustible y Estaciones
+      summary: Actualizar datos de estación de servicio
+      description: Actualizar datos de estación de servicio
+      operationId: patch_api_estaciones-servicio_id
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/estaciones-servicio/{id}/toggle:
+    patch:
+      tags:
+      - Combustible y Estaciones
+      summary: Habilitar o inhabilitar estación de servicio
+      description: Habilitar o inhabilitar estación de servicio
+      operationId: patch_api_estaciones-servicio_id_toggle
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/ordenes-combustible:
+    post:
+      tags:
+      - Combustible y Estaciones
+      summary: Emitir orden de despacho de combustible para hoja de ruta
+      description: Emitir orden de despacho de combustible para hoja de ruta
+      operationId: post_api_ordenes-combustible
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - route_sheet_id
+              - service_station_id
+              - fuel_type
+              - gallons_requested
+              properties:
+                route_sheet_id:
+                  type: integer
+                  example: 5
+                service_station_id:
+                  type: integer
+                  example: 1
+                fuel_type:
+                  type: string
+                  enum:
+                  - diesel
+                  - extra
+                  - super
+                  example: diesel
+                gallons_requested:
+                  type: number
+                  example: 20.0
+                estimated_cost:
+                  type: number
+                  example: 36.0
+  /api/ordenes-combustible/{codigo_orden}:
+    get:
+      tags:
+      - Combustible y Estaciones
+      summary: Consultar detalle de orden de combustible por código único
+      description: Consultar detalle de orden de combustible por código único
+      operationId: get_api_ordenes-combustible_codigo_orden
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: codigo_orden
+        in: path
+        required: true
+        schema:
+          type: string
+        example: COMB-2026-0045
+  /api/ordenes-combustible/{codigo_orden}/despachar:
+    patch:
+      tags:
+      - Combustible y Estaciones
+      summary: Registrar despacho efectivo de combustible en estación
+      description: Permite al despachador o garita ingresar galones despachados, valor y número de comprobante.
+      operationId: patch_api_ordenes-combustible_codigo_orden_despachar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: codigo_orden
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - gallons_dispatched
+              - total_amount
+              - voucher_number
+              properties:
+                gallons_dispatched:
+                  type: number
+                  example: 20.0
+                total_amount:
+                  type: number
+                  example: 36.0
+                voucher_number:
+                  type: string
+                  example: FAC-001-09876
+  /api/mis-ordenes-combustible:
+    get:
+      tags:
+      - Combustible y Estaciones
+      summary: Órdenes de combustible asignadas al conductor autenticado
+      description: Órdenes de combustible asignadas al conductor autenticado
+      operationId: get_api_mis-ordenes-combustible
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/compensaciones/pendientes:
+    get:
+      tags:
+      - Compensaciones y Viáticos
+      summary: Listar viajes listos para liquidación de horas extras y viáticos
+      description: Listar viajes listos para liquidación de horas extras y viáticos
+      operationId: get_api_compensaciones_pendientes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/compensaciones/{hoja_ruta_id}/calcular:
+    get:
+      tags:
+      - Compensaciones y Viáticos
+      summary: Calcular viáticos y horas extras según tarifas institucionales vigentes
+      description: Calcular viáticos y horas extras según tarifas institucionales vigentes
+      operationId: get_api_compensaciones_hoja_ruta_id_calcular
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: hoja_ruta_id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/compensaciones/{hoja_ruta_id}/liquidar:
+    post:
+      tags:
+      - Compensaciones y Viáticos
+      summary: Guardar liquidación de compensación por secretaría
+      description: Guardar liquidación de compensación por secretaría
+      operationId: post_api_compensaciones_hoja_ruta_id_liquidar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: hoja_ruta_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - extra_hours
+              - total_amount
+              properties:
+                extra_hours:
+                  type: number
+                  example: 5.0
+                extra_hours_amount:
+                  type: number
+                  example: 30.0
+                per_diem_amount:
+                  type: number
+                  example: 40.0
+                subsistence_amount:
+                  type: number
+                  example: 15.0
+                total_amount:
+                  type: number
+                  example: 85.0
+                observation:
+                  type: string
+                  example: Jornada extendida por condiciones climáticas.
+  /api/compensaciones/{hoja_ruta_id}/aprobar:
+    post:
+      tags:
+      - Compensaciones y Viáticos
+      summary: Aprobar liquidación de chofer por jefatura de transporte
+      description: Aprobar liquidación de chofer por jefatura de transporte
+      operationId: post_api_compensaciones_hoja_ruta_id_aprobar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: hoja_ruta_id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/mis-compensaciones:
+    get:
+      tags:
+      - Compensaciones y Viáticos
+      summary: Historial de compensaciones del chofer autenticado
+      description: Historial de compensaciones del chofer autenticado
+      operationId: get_api_mis-compensaciones
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/compensaciones/{id}/confirmar:
+    patch:
+      tags:
+      - Compensaciones y Viáticos
+      summary: Confirmación y conformidad del chofer sobre su liquidación
+      description: Confirmación y conformidad del chofer sobre su liquidación
+      operationId: patch_api_compensaciones_id_confirmar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/mis-comisiones-pendientes-liquidar:
+    get:
+      tags:
+      - Compensaciones y Viáticos
+      summary: Comisiones docentes pendientes de descargo
+      description: Comisiones docentes pendientes de descargo
+      operationId: get_api_mis-comisiones-pendientes-liquidar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/actas-entrega:
+    post:
+      tags:
+      - Taller y Garita
+      summary: Emitir acta de entrega pre-operacional en garita (Checklist inicial)
+      description: Inspección visual obligatoria antes de que el vehículo abandone el campus (PST-01-F-004.1).
+      operationId: post_api_actas-entrega
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - route_sheet_id
+              - initial_mileage
+              - initial_fuel_level
+              - checklist
+              properties:
+                route_sheet_id:
+                  type: integer
+                  example: 5
+                initial_mileage:
+                  type: number
+                  example: 45200.0
+                initial_fuel_level:
+                  type: string
+                  example: FULL
+                checklist:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      component_id:
+                        type: integer
+                        example: 1
+                      status:
+                        type: string
+                        enum:
+                        - bueno
+                        - regular
+                        - malo
+                        example: bueno
+                      remarks:
+                        type: string
+                        example: Luces en perfecto estado
+                observations:
+                  type: string
+                  example: Vehículo limpio y con botiquín completo
+  /api/actas-recepcion-llegada:
+    post:
+      tags:
+      - Taller y Garita
+      summary: Registrar recepción de llegada en garita (Cierre de viaje)
+      description: Registrar recepción de llegada en garita (Cierre de viaje)
+      operationId: post_api_actas-recepcion-llegada
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - act_id
+              - final_mileage
+              - final_fuel_level
+              properties:
+                act_id:
+                  type: integer
+                  example: 7
+                final_mileage:
+                  type: number
+                  example: 45430.0
+                final_fuel_level:
+                  type: string
+                  example: 1/2
+                damage_reported:
+                  type: string
+                  example: Ningún daño registrado
+                cleanliness_ok:
+                  type: boolean
+                  example: true
+  /api/inspecciones/pendientes:
+    get:
+      tags:
+      - Taller y Garita
+      summary: Listar viajes con inspección de garita pendiente
+      description: Listar viajes con inspección de garita pendiente
+      operationId: get_api_inspecciones_pendientes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/inspecciones/componentes:
+    get:
+      tags:
+      - Taller y Garita
+      summary: Catálogo de componentes a evaluar en checklist vehicular (luces, frenos, llantas, etc.)
+      description: Catálogo de componentes a evaluar en checklist vehicular (luces, frenos, llantas, etc.)
+      operationId: get_api_inspecciones_componentes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/novedades:
+    get:
+      tags:
+      - Taller y Garita
+      summary: Consultar libro de novedades mecánicas e incidencias de patio
+      description: Consultar libro de novedades mecánicas e incidencias de patio
+      operationId: get_api_novedades
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Taller y Garita
+      summary: Registrar novedad mecánica por conductor o mecánico
+      description: Registrar novedad mecánica por conductor o mecánico
+      operationId: post_api_novedades
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - vehicle_id
+              - description
+              - severity
+              properties:
+                vehicle_id:
+                  type: integer
+                  example: 3
+                description:
+                  type: string
+                  example: Vibración al frenar sobre 80 km/h
+                severity:
+                  type: string
+                  enum:
+                  - baja
+                  - media
+                  - alta
+                  example: media
+                mileage:
+                  type: number
+                  example: 45430.0
+  /api/ordenes-taller:
+    get:
+      tags:
+      - Taller y Garita
+      summary: Listar órdenes de trabajo mecánicas (PST-01-F-003-OT)
+      description: Listar órdenes de trabajo mecánicas (PST-01-F-003-OT)
+      operationId: get_api_ordenes-taller
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Taller y Garita
+      summary: Abrir nueva orden de trabajo en taller de mantenimiento
+      description: Abrir nueva orden de trabajo en taller de mantenimiento
+      operationId: post_api_ordenes-taller
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - vehicle_id
+              - issue_description
+              - priority
+              properties:
+                vehicle_id:
+                  type: integer
+                  example: 3
+                mechanic_id:
+                  type: integer
+                  example: 6
+                issue_description:
+                  type: string
+                  example: Cambio de kit de embrague y filtros
+                priority:
+                  type: string
+                  enum:
+                  - baja
+                  - media
+                  - alta
+                  - urgente
+                  example: alta
+                estimated_completion_date:
+                  type: string
+                  format: date
+                  example: '2026-10-20'
+  /api/ordenes-taller/{id}/cerrar:
+    patch:
+      tags:
+      - Taller y Garita
+      summary: Cerrar orden de trabajo mecánico e ingresar repuestos consumidos
+      description: Cerrar orden de trabajo mecánico e ingresar repuestos consumidos
+      operationId: patch_api_ordenes-taller_id_cerrar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - work_performed
+              properties:
+                work_performed:
+                  type: string
+                  example: Reemplazo de pastillas de freno y purgado del sistema hidráulico.
+                supplies_used:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      supply_id:
+                        type: integer
+                        example: 2
+                      quantity:
+                        type: number
+                        example: 1.0
+                final_cost:
+                  type: number
+                  example: 45.0
+  /api/insumos:
+    get:
+      tags:
+      - Taller y Garita
+      summary: Inventario de repuestos, lubricantes y consumibles de taller
+      description: Inventario de repuestos, lubricantes y consumibles de taller
+      operationId: get_api_insumos
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/mecanicos:
+    get:
+      tags:
+      - Taller y Garita
+      summary: Nómina de mecánicos y personal de patio asignado
+      description: Nómina de mecánicos y personal de patio asignado
+      operationId: get_api_mecanicos
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/documentos/catalogo:
+    get:
+      tags:
+      - Documentos y Firma Digital
+      summary: Catálogo de tipos de documentos oficiales y plantillas institucionales
+      description: Devuelve la nomenclatura y codificación de calidad (PST-01-F-003, PST-01-F-006, etc.).
+      operationId: get_api_documentos_catalogo
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/documentos:
+    get:
+      tags:
+      - Documentos y Firma Digital
+      summary: Listar documentos institucionales generados con filtros de seguridad
+      description: Listar documentos institucionales generados con filtros de seguridad
+      operationId: get_api_documentos
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: request_id
+        in: query
+        schema:
+          type: integer
+      - name: type
+        in: query
+        schema:
+          type: string
+  /api/documentos/generar:
+    post:
+      tags:
+      - Documentos y Firma Digital
+      summary: Generar PDF institucional con código QR y Hash SHA-256
+      description: Generar PDF institucional con código QR y Hash SHA-256
+      operationId: post_api_documentos_generar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - type
+              properties:
+                type:
+                  type: string
+                  enum:
+                  - orden_movilizacion
+                  - hoja_ruta
+                  - acta_entrega
+                  - orden_taller
+                  - libro_novedades
+                  - provision_lubricantes
+                  - informe_mensual
+                  - control_aceite
+                  example: orden_movilizacion
+                request_id:
+                  type: integer
+                  example: 10
+                work_order_id:
+                  type: integer
+                issue_log_id:
+                  type: integer
+  /api/documentos/adjuntar:
+    post:
+      tags:
+      - Documentos y Firma Digital
+      summary: Adjuntar documento escaneado externo (PDF)
+      description: Adjuntar documento escaneado externo (PDF)
+      operationId: post_api_documentos_adjuntar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              - document_type
+              properties:
+                file:
+                  type: string
+                  format: binary
+                document_type:
+                  type: string
+                  example: acta_externa
+                request_id:
+                  type: integer
+                  example: 10
+  /api/documentos/{id}/firmar:
+    post:
+      tags:
+      - Documentos y Firma Digital
+      summary: Estampar firma digital o criptográfica en documento institucional
+      description: Estampar registro de firma de aplicación (Ed25519 con Sodium disponible; fallback HMAC
+        usando APP_KEY) o criptográfica en documento institucional La firma se guarda como metadato separado
+        y no queda embebida ni certificada por una autoridad en el PDF.
+      operationId: post_api_documentos_id_firmar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signature_image:
+                  type: string
+                  description: Firma manuscrita en formato Base64 PNG
+                use_crypto:
+                  type: boolean
+                  default: true
+                  description: Añadir sello de integridad criptográfica SHA-256
+  /api/documentos/{id}/verificar:
+    get:
+      tags:
+      - Documentos y Firma Digital
+      summary: Verificación pública de autenticidad e integridad del documento
+      description: Permite validar la autenticidad del documento mediante su ID o código QR sin requerir
+        inicio de sesión.
+      operationId: get_api_documentos_id_verificar
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/documentos/{id}/archivo:
+    get:
+      tags:
+      - Documentos y Firma Digital
+      summary: Descargar archivo binario PDF del documento oficial
+      description: Descargar archivo binario PDF del documento oficial
+      operationId: get_api_documentos_id_archivo
+      responses:
+        '200':
+          description: Flujo binario del archivo PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/alertas:
+    get:
+      tags:
+      - Alertas y Notificaciones
+      summary: Obtener notificaciones y avisos operativos para el usuario
+      description: Obtener notificaciones y avisos operativos para el usuario
+      operationId: get_api_alertas
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/alertas/{id}/leida:
+    post:
+      tags:
+      - Alertas y Notificaciones
+      summary: Marcar notificación como leída
+      description: Marcar notificación como leída
+      operationId: post_api_alertas_id_leida
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/mapas/viajes:
+    get:
+      tags:
+      - Monitoreo y Evaluaciones
+      summary: Consultar recorridos activos en tiempo real para mapa Leaflet
+      description: Consultar recorridos activos en tiempo real para mapa Leaflet
+      operationId: get_api_mapas_viajes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/mapas/viajes/{id}:
+    get:
+      tags:
+      - Monitoreo y Evaluaciones
+      summary: Consultar telemetría y coordenadas detalladas de un viaje específico
+      description: Consultar telemetría y coordenadas detalladas de un viaje específico
+      operationId: get_api_mapas_viajes_id
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/evaluaciones:
+    post:
+      tags:
+      - Monitoreo y Evaluaciones
+      summary: Calificar la satisfacción del viaje por parte del solicitante o pasajero
+      description: Calificar la satisfacción del viaje por parte del solicitante o pasajero
+      operationId: post_api_evaluaciones
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - route_sheet_id
+              - rating
+              properties:
+                route_sheet_id:
+                  type: integer
+                  example: 5
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                punctuality_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                vehicle_condition_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 4
+                driver_conduct_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                comments:
+                  type: string
+                  example: Excelente atención y conducción muy prudente.
+  /api/mis-evaluaciones-pendientes:
+    get:
+      tags:
+      - Monitoreo y Evaluaciones
+      summary: Listar viajes realizados pendientes de calificación
+      description: Listar viajes realizados pendientes de calificación
+      operationId: get_api_mis-evaluaciones-pendientes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/solicitudes:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Reporte consolidado de solicitudes de movilización por período
+      description: Reporte consolidado de solicitudes de movilización por período
+      operationId: get_api_reportes_solicitudes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/viajes:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Reporte histórico de viajes realizados con métricas de kilometraje
+      description: Reporte histórico de viajes realizados con métricas de kilometraje
+      operationId: get_api_reportes_viajes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/mensual:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Informe mensual consolidado PAM-04-F-007
+      description: Informe mensual consolidado PAM-04-F-007
+      operationId: get_api_reportes_mensual
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/flota:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Reporte de disponibilidad, kilometraje y estado operativo del parque automotor
+      description: Reporte de disponibilidad, kilometraje y estado operativo del parque automotor
+      operationId: get_api_reportes_flota
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/kpis:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Indicadores clave de rendimiento (KPIs) de transporte y efectividad
+      description: Indicadores clave de rendimiento (KPIs) de transporte y efectividad
+      operationId: get_api_reportes_kpis
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/facultades:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Distribución de consumo y viajes agrupados por facultad universitaria
+      description: Distribución de consumo y viajes agrupados por facultad universitaria
+      operationId: get_api_reportes_facultades
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/aceite:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Control de cambios de aceite y proyección de mantenimientos preventivos
+      description: Control de cambios de aceite y proyección de mantenimientos preventivos
+      operationId: get_api_reportes_aceite
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/reportes/novedades:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Resumen estadístico de averías y novedades mecánicas
+      description: Resumen estadístico de averías y novedades mecánicas
+      operationId: get_api_reportes_novedades
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/dashboard/metrics:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Métricas agregadas para el tablero principal del sistema
+      description: Métricas agregadas para el tablero principal del sistema
+      operationId: get_api_dashboard_metrics
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/logs-sistema:
+    get:
+      tags:
+      - Reportes y Métricas
+      summary: Registro de auditoría del sistema (System Logs)
+      description: Registro de auditoría del sistema (System Logs)
+      operationId: get_api_logs-sistema
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/tarifas:
+    get:
+      tags:
+      - Tarifas Institucionales
+      summary: Consultar tarifas institucionales vigentes
+      description: Consultar tarifas institucionales vigentes
+      operationId: get_api_tarifas
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Tarifas Institucionales
+      summary: Registrar nuevo factor de tarifa institucional
+      description: Registrar nuevo factor de tarifa institucional
+      operationId: post_api_tarifas
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - code
+              - name
+              - rate_type
+              - value
+              properties:
+                code:
+                  type: string
+                  example: VIATICO_NACIONAL
+                name:
+                  type: string
+                  example: Viático por Día Completo Nacional
+                rate_type:
+                  type: string
+                  example: viatico
+                value:
+                  type: number
+                  example: 80.0
+  /api/tarifas/{id}:
+    put:
+      tags:
+      - Tarifas Institucionales
+      summary: Modificar valor de tarifa institucional
+      description: Modificar valor de tarifa institucional
+      operationId: put_api_tarifas_id
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/admin/usuarios:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Listar usuarios con paginación y búsqueda'
+      description: 'CRUD: Listar usuarios con paginación y búsqueda'
+      operationId: get_api_admin_usuarios
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: faculty
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+    post:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Crear usuario en el sistema'
+      description: 'CRUD: Crear usuario en el sistema'
+      operationId: post_api_admin_usuarios
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - national_id
+              - first_name
+              - last_name
+              - email
+              - password
+              - role_id
+              properties:
+                national_id:
+                  type: string
+                first_name:
+                  type: string
+                  example: María
+                last_name:
+                  type: string
+                  example: Delgado
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                role_id:
+                  type: integer
+                  example: 2
+                faculty_institution:
+                  type: string
+                  example: FACULTAD DE INGENIERIA
+  /api/admin/usuarios/{usuario}:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Ver detalle de usuario'
+      description: 'CRUD: Ver detalle de usuario'
+      operationId: get_api_admin_usuarios_usuario
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: usuario
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: &id001
+      - Administración Maestra
+      summary: 'CRUD: Actualizar usuario y asignación de roles'
+      description: 'CRUD: Actualizar usuario y asignación de roles'
+      operationId: put_api_admin_usuarios_usuario
+      responses: &id002
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security: &id003
+      - bearerAuth: []
+      parameters: &id004
+      - name: usuario
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Desactivar o eliminar usuario'
+      description: 'CRUD: Desactivar o eliminar usuario'
+      operationId: delete_api_admin_usuarios_usuario
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: usuario
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: *id001
+      summary: 'CRUD: Actualizar usuario y asignación de roles'
+      description: 'CRUD: Actualizar usuario y asignación de roles'
+      operationId: put_api_admin_usuarios_usuarioPatch
+      responses: *id002
+      security: *id003
+      parameters: *id004
+  /api/admin/roles:
+    get:
+      tags:
+      - Administración Maestra
+      summary: Listar todos los roles del sistema
+      description: Listar todos los roles del sistema
+      operationId: get_api_admin_roles
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/admin/vehiculos:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Listado maestro de vehículos'
+      description: 'CRUD: Listado maestro de vehículos'
+      operationId: get_api_admin_vehiculos
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Crear vehículo en inventario'
+      description: 'CRUD: Crear vehículo en inventario'
+      operationId: post_api_admin_vehiculos
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/admin/vehiculos/{vehiculo}:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Detalle de vehículo'
+      description: 'CRUD: Detalle de vehículo'
+      operationId: get_api_admin_vehiculos_vehiculo
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: vehiculo
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: &id005
+      - Administración Maestra
+      summary: 'CRUD: Actualizar vehículo'
+      description: 'CRUD: Actualizar vehículo'
+      operationId: put_api_admin_vehiculos_vehiculo
+      responses: &id006
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security: &id007
+      - bearerAuth: []
+      parameters: &id008
+      - name: vehiculo
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Dar de baja vehículo'
+      description: 'CRUD: Dar de baja vehículo'
+      operationId: delete_api_admin_vehiculos_vehiculo
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: vehiculo
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: *id005
+      summary: 'CRUD: Actualizar vehículo'
+      description: 'CRUD: Actualizar vehículo'
+      operationId: put_api_admin_vehiculos_vehiculoPatch
+      responses: *id006
+      security: *id007
+      parameters: *id008
+  /api/admin/choferes:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Listado maestro de choferes'
+      description: 'CRUD: Listado maestro de choferes'
+      operationId: get_api_admin_choferes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Registrar chofer en plantilla'
+      description: 'CRUD: Registrar chofer en plantilla'
+      operationId: post_api_admin_choferes
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/admin/choferes/{chofere}:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Detalle de chofer'
+      description: 'CRUD: Detalle de chofer'
+      operationId: get_api_admin_choferes_chofere
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: chofere
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: &id009
+      - Administración Maestra
+      summary: 'CRUD: Actualizar chofer'
+      description: 'CRUD: Actualizar chofer'
+      operationId: put_api_admin_choferes_chofere
+      responses: &id010
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security: &id011
+      - bearerAuth: []
+      parameters: &id012
+      - name: chofere
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Eliminar o desactivar chofer'
+      description: 'CRUD: Eliminar o desactivar chofer'
+      operationId: delete_api_admin_choferes_chofere
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: chofere
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: *id009
+      summary: 'CRUD: Actualizar chofer'
+      description: 'CRUD: Actualizar chofer'
+      operationId: put_api_admin_choferes_choferePatch
+      responses: *id010
+      security: *id011
+      parameters: *id012
+  /api/admin/estaciones:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Listado de estaciones con convenio'
+      description: 'CRUD: Listado de estaciones con convenio'
+      operationId: get_api_admin_estaciones
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Registrar convenio con estación'
+      description: 'CRUD: Registrar convenio con estación'
+      operationId: post_api_admin_estaciones
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/admin/estaciones/{id}:
+    put:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Actualizar datos de convenio de estación'
+      description: 'CRUD: Actualizar datos de convenio de estación'
+      operationId: put_api_admin_estaciones_id
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/admin/estaciones/{id}/toggle-convenio:
+    patch:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Activar o suspender convenio con estación'
+      description: 'CRUD: Activar o suspender convenio con estación'
+      operationId: patch_api_admin_estaciones_id_toggle-convenio
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+  /api/admin/tarifas:
+    get:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Catálogo de tarifas'
+      description: 'CRUD: Catálogo de tarifas'
+      operationId: get_api_admin_tarifas
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Crear tarifa'
+      description: 'CRUD: Crear tarifa'
+      operationId: post_api_admin_tarifas
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+  /api/admin/tarifas/{id}:
+    put:
+      tags:
+      - Administración Maestra
+      summary: 'CRUD: Actualizar tarifa'
+      description: 'CRUD: Actualizar tarifa'
+      operationId: put_api_admin_tarifas_id
+      responses:
+        '200':
+          description: Operación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSuccess'
+        '401':
+          description: No autenticado o token inválido
+        '403':
+          description: Permisos insuficientes para este recurso
+        '422':
+          description: Error de validación en los parámetros enviados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum Token
+      description: Token de autenticación emitido en el endpoint `/api/login` o `/api/register`.
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        national_id:
+          type: string
+          description: Cédula o documento de identidad (10 dígitos)
+        first_name:
+          type: string
+          example: Juan Carlos
+        last_name:
+          type: string
+          example: Pérez
+        email:
+          type: string
+          format: email
+        faculty_institution:
+          type: string
+          example: FACULTAD DE CIENCIAS INFORMATICAS
+        job_title:
+          type: string
+          nullable: true
+          example: Docente Titular
+        role_id:
+          type: integer
+          example: 4
+        is_active:
+          type: boolean
+          example: true
+        role:
+          $ref: '#/components/schemas/Role'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: secretaria
+        description:
+          type: string
+          example: Secretaría / Administrativo
+    MobilizationRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        requester_id:
+          type: integer
+          example: 1
+        origin:
+          type: string
+          example: Campus Manta - Matriz
+        destination:
+          type: string
+          example: Chone - Centro Experimental
+        start_date:
+          type: string
+          format: date
+          example: '2026-10-05'
+        end_date:
+          type: string
+          format: date
+          example: '2026-10-06'
+        start_time:
+          type: string
+          example: 07:30
+        end_time:
+          type: string
+          example: '18:00'
+        reason:
+          type: string
+          example: Práctica de campo y vinculación comunitaria.
+        mobilization_type:
+          type: string
+          enum:
+          - interna
+          - externa
+          example: interna
+        passenger_count:
+          type: integer
+          example: 15
+        destination_latitude:
+          type: number
+          nullable: true
+          example: -0.6934
+        destination_longitude:
+          type: number
+          nullable: true
+          example: -80.0931
+        status:
+          type: string
+          enum:
+          - pendiente
+          - autorizado
+          - aprobado
+          - rechazado
+          - asignado
+          - en_ruta
+          - completado
+          - liquidado
+          example: autorizado
+        authorized_by_secretary:
+          type: boolean
+          example: true
+        approved_by_rectorate:
+          type: boolean
+          example: false
+        rejection_reason:
+          type: string
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-29T10:00:00Z'
+        requester:
+          $ref: '#/components/schemas/User'
+    RouteSheet:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        mobilization_request_id:
+          type: integer
+          example: 10
+        vehicle_id:
+          type: integer
+          example: 3
+        driver_id:
+          type: integer
+          example: 2
+        scheduled_departure_date:
+          type: string
+          format: date
+          example: '2026-10-05'
+        scheduled_departure_time:
+          type: string
+          example: 07:30
+        status:
+          type: string
+          enum:
+          - pendiente
+          - asignado
+          - en_camino
+          - finalizado
+          example: asignado
+        driver_status:
+          type: string
+          enum:
+          - pendiente
+          - aceptado
+          - rechazado
+          example: aceptado
+        rejection_reason:
+          type: string
+          nullable: true
+        initial_mileage:
+          type: number
+          nullable: true
+          example: 45200.5
+        final_mileage:
+          type: number
+          nullable: true
+          example: 45430.0
+        driver:
+          $ref: '#/components/schemas/Driver'
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+    Vehicle:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3
+        plate_number:
+          type: string
+          example: MEA-1234
+        brand:
+          type: string
+          example: Toyota
+        model:
+          type: string
+          example: Coaster
+        year:
+          type: integer
+          example: 2022
+        capacity:
+          type: integer
+          example: 28
+        fuel_type:
+          type: string
+          enum:
+          - diesel
+          - extra
+          - super
+          example: diesel
+        current_mileage:
+          type: number
+          example: 45200.5
+        status:
+          type: string
+          enum:
+          - disponible
+          - en_viaje
+          - mantenimiento
+          - inactivo
+          example: disponible
+    Driver:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        user_id:
+          type: integer
+          example: 4
+        license_number:
+          type: string
+          example: '1312345678'
+        license_type:
+          type: string
+          example: Tipo D
+        license_expiration:
+          type: string
+          format: date
+          example: '2027-12-31'
+        status:
+          type: string
+          enum:
+          - disponible
+          - en_viaje
+          - descanso
+          - inactivo
+          example: disponible
+        user:
+          $ref: '#/components/schemas/User'
+    ServiceStation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Estación de Servicios Primax El Palmar
+        address:
+          type: string
+          example: Av. 4 de Noviembre y Calle 119
+        city:
+          type: string
+          example: Manta
+        phone:
+          type: string
+          example: '052620000'
+        has_agreement:
+          type: boolean
+          example: true
+        is_active:
+          type: boolean
+          example: true
+    FuelOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 12
+        order_code:
+          type: string
+          example: COMB-2026-0045
+        route_sheet_id:
+          type: integer
+          example: 5
+        service_station_id:
+          type: integer
+          example: 1
+        fuel_type:
+          type: string
+          example: diesel
+        gallons_requested:
+          type: number
+          example: 15.5
+        gallons_dispatched:
+          type: number
+          nullable: true
+          example: 15.5
+        total_amount:
+          type: number
+          nullable: true
+          example: 27.9
+        voucher_number:
+          type: string
+          nullable: true
+          example: V-998877
+        status:
+          type: string
+          enum:
+          - emitida
+          - despachada
+          - anulada
+          example: despachada
+        dispatched_at:
+          type: string
+          format: date-time
+          nullable: true
+    DriverCompensation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3
+        route_sheet_id:
+          type: integer
+          example: 5
+        driver_id:
+          type: integer
+          example: 2
+        extra_hours:
+          type: number
+          example: 4.0
+        extra_hours_amount:
+          type: number
+          example: 24.5
+        per_diem_amount:
+          type: number
+          example: 35.0
+        subsistence_amount:
+          type: number
+          example: 15.0
+        total_amount:
+          type: number
+          example: 74.5
+        status:
+          type: string
+          enum:
+          - pendiente
+          - liquidado
+          - aprobado
+          - confirmado
+          example: aprobado
+        liquidated_at:
+          type: string
+          format: date-time
+        approved_at:
+          type: string
+          format: date-time
+    DeliveryReceptionAct:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 7
+        route_sheet_id:
+          type: integer
+          example: 5
+        vehicle_id:
+          type: integer
+          example: 3
+        initial_mileage:
+          type: number
+          example: 45200.0
+        final_mileage:
+          type: number
+          nullable: true
+          example: 45430.0
+        initial_fuel_level:
+          type: string
+          example: 3/4
+        final_fuel_level:
+          type: string
+          nullable: true
+          example: 1/2
+        status:
+          type: string
+          enum:
+          - salida
+          - llegada
+          example: llegada
+    WorkshopWorkOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 4
+        vehicle_id:
+          type: integer
+          example: 3
+        mechanic_id:
+          type: integer
+          example: 5
+        issue_description:
+          type: string
+          example: Mantenimiento preventivo de frenos y cambio de aceite.
+        priority:
+          type: string
+          enum:
+          - baja
+          - media
+          - alta
+          - urgente
+          example: alta
+        status:
+          type: string
+          enum:
+          - abierta
+          - en_proceso
+          - cerrada
+          example: cerrada
+        work_performed:
+          type: string
+          nullable: true
+          example: Se sustituyeron pastillas de freno y filtro de aceite.
+        final_cost:
+          type: number
+          nullable: true
+          example: 85.5
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+    GeneratedDocument:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 15
+        document_type:
+          type: string
+          example: orden_movilizacion
+        source:
+          type: string
+          example: sistema
+        request_id:
+          type: integer
+          nullable: true
+          example: 10
+        original_filename:
+          type: string
+          example: orden_movilizacion_10.pdf
+        file_hash:
+          type: string
+          example: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        file_url:
+          type: string
+          example: /api/documentos/15/archivo
+        created_at:
+          type: string
+          format: date-time
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 22
+        user_id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Solicitud Autorizada
+        message:
+          type: string
+          example: Su solicitud de movilización a Chone ha sido autorizada por secretaría.
+        read:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+    RateConfiguration:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code:
+          type: string
+          example: KM_EXTRA
+        name:
+          type: string
+          example: Costo por Kilómetro Adicional
+        rate_type:
+          type: string
+          example: kilometraje
+        value:
+          type: number
+          example: 0.45
+        is_active:
+          type: boolean
+          example: true
+    ApiResponseSuccess:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Operación realizada exitosamente
+        data:
+          type: object
+    ApiResponseError:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          example: Mensaje detallado del error
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string

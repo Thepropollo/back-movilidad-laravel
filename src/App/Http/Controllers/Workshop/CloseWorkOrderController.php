@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Workshop;
 
 use App\Http\Controllers\Controller;
 use Domain\Workshop\Actions\CloseWorkOrderAction;
+use Domain\Workshop\Models\WorkshopWorkOrder;
 use Illuminate\Http\Request;
 
 class CloseWorkOrderController extends Controller
@@ -17,6 +18,14 @@ class CloseWorkOrderController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(['message' => 'No autenticado.'], 401);
+        }
+
+        if ($user->hasRole('mecanico') && ! $user->hasRole(['secretaria', 'jefe_transporte'])
+            && ! WorkshopWorkOrder::query()
+                ->whereKey($id)
+                ->where('responsible_mechanic_id', $user->id)
+                ->exists()) {
+            return response()->json(['message' => 'No tiene acceso a esta orden de taller.'], 403);
         }
 
         $request->validate([

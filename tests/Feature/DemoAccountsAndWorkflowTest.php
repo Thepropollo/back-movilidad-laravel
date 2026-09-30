@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Domain\Auth\Models\Driver;
 use Domain\Auth\Models\User;
 use Domain\Vehicles\Models\Vehicle;
+use Domain\Workshop\Models\IssueLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -82,7 +83,7 @@ class DemoAccountsAndWorkflowTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('request.status', 'autorizada_secretaria');
 
-        $vehicleId = Vehicle::where('plate', 'MBA-1234')->value('id');
+        $vehicleId = Vehicle::where('plate', 'MBA-2468')->value('id');
         $driverId = Driver::where('user_id', User::where('email', 'conductor1@uleam.edu.ec')->value('id'))->value('id');
 
         $sheet = $this->postJson('/api/hojas-ruta', [
@@ -101,9 +102,10 @@ class DemoAccountsAndWorkflowTest extends TestCase
 
         $this->actingAsEmail('mecanico@uleam.edu.ec');
         $components = collect($this->getJson('/api/inspecciones/componentes')->assertOk()->json())
-            ->map(fn (array $row) => [
+            ->values()
+            ->map(fn (array $row, int $index) => [
                 'id' => $row['id'],
-                'physical_condition' => 'BUENO',
+                'physical_condition' => $index === 0 ? 'MALO' : 'BUENO',
             ])
             ->all();
 
@@ -113,6 +115,39 @@ class DemoAccountsAndWorkflowTest extends TestCase
             'fuel_level' => 'full',
             'checkpoint_mileage' => 45000,
             'components' => $components,
+        ])->assertCreated()
+            ->assertJsonPath('act.registration_type', 'salida');
+
+        $issue = IssueLog::where('route_sheet_id', $sheet['id'])
+            ->where('description', 'like', 'Novedad en inspección de salida%')
+            ->firstOrFail();
+        $this->assertSame((int) $sheet['id'], (int) $issue->route_sheet_id);
+        $this->assertSame('programado', $issue->routeSheet->trip_status);
+        $this->assertSame('aceptado', $issue->routeSheet->driver_response);
+        $this->assertSame('en_taller', Vehicle::findOrFail($vehicleId)->operational_status);
+        $this->actingAsEmail('mecanico@uleam.edu.ec');
+        $workOrder = $this->postJson('/api/ordenes-taller', [
+            'issue_log_id' => $issue->id,
+            'vehicle_id' => $vehicleId,
+            'responsible_mechanic_id' => User::where('email', 'mecanico@uleam.edu.ec')->value('id'),
+            'maintenance_type' => 'correctivo',
+            'work_details' => 'Reparar el componente detectado en la inspección de salida.',
+        ])->assertCreated()
+            ->json('work_order');
+
+        $this->patchJson("/api/ordenes-taller/{$workOrder['id']}/cerrar", [
+            'insumos_utilizados' => [],
+        ])->assertOk();
+
+        $this->postJson('/api/actas-entrega', [
+            'route_sheet_id' => $sheet['id'],
+            'registration_type' => 'salida',
+            'fuel_level' => 'full',
+            'checkpoint_mileage' => 45000,
+            'components' => collect($components)->map(fn (array $row) => [
+                'id' => $row['id'],
+                'physical_condition' => 'BUENO',
+            ])->all(),
         ])->assertCreated();
 
         $this->actingAsEmail('docente@uleam.edu.ec');
@@ -254,9 +289,9 @@ class DemoAccountsAndWorkflowTest extends TestCase
             'origin' => 'MANTA',
             'destination' => $destination,
             'travel_reason' => "Prueba automatizada de flujo {$type}",
-            'departure_date' => now()->addDays(3)->toDateString(),
+            'departure_date' => now()->addDays(10)->toDateString(),
             'departure_time' => '08:00',
-            'return_date' => now()->addDays(4)->toDateString(),
+            'return_date' => now()->addDays(11)->toDateString(),
             'return_time' => '18:00',
             'declaracion_fondos_aceptada' => true,
         ];

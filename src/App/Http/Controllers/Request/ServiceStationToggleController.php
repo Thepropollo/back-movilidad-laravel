@@ -12,7 +12,7 @@ class ServiceStationToggleController extends Controller
     public function __invoke(Request $request, $id)
     {
         $user = $request->user();
-        if (! $user || $user->role->name !== 'jefe_transporte') {
+        if (! $user || ! $user->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 

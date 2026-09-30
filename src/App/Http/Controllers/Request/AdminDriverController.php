@@ -16,7 +16,7 @@ class AdminDriverController extends Controller
     public function index(Request $request)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -28,7 +28,7 @@ class AdminDriverController extends Controller
     public function store(Request $request)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -46,7 +46,7 @@ class AdminDriverController extends Controller
 
         // Verify the user actually has the 'chofer' role
         $user = User::findOrFail($request->input('user_id'));
-        if ($user->role->name !== 'chofer') {
+        if (! $user->hasRole('conductor')) {
             return response()->json(['message' => 'El usuario seleccionado debe tener el rol de chofer.'], 422);
         }
 
@@ -84,7 +84,7 @@ class AdminDriverController extends Controller
     public function update(Request $request, $id)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -139,7 +139,7 @@ class AdminDriverController extends Controller
     public function destroy(Request $request, $id)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 

@@ -3,12 +3,15 @@
 namespace Domain\Requests\Actions;
 
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Domain\Auth\Models\Driver;
 use Domain\Auth\Models\SystemLog;
-use Domain\Requests\Models\MobilizationRequest;
 use Domain\Requests\Models\RouteSheet;
+use Domain\Requests\Models\MobilizationRequest;
+use Domain\Requests\Support\ScheduleInterval;
 use Domain\Requests\Support\RequestWorkflow;
 use Domain\Vehicles\Models\Vehicle;
+use Domain\Workshop\Models\WorkshopWorkOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,7 +20,7 @@ class CreateRouteSheetAction
     public function execute(int $requestId, int $vehicleId, int $driverId, int $transportChiefId, string $ipAddress = '127.0.0.1'): RouteSheet
     {
         return DB::transaction(function () use ($requestId, $vehicleId, $driverId, $transportChiefId, $ipAddress) {
-            $request = MobilizationRequest::findOrFail($requestId);
+            $request = MobilizationRequest::query()->lockForUpdate()->findOrFail($requestId);
 
             $assignable = $request->mobilization_type === 'interna'
                 ? in_array($request->status, ['autorizada_secretaria', 'pendiente'], true)
@@ -35,7 +38,7 @@ class CreateRouteSheetAction
                 ]);
             }
 
-            $vehicle = Vehicle::findOrFail($vehicleId);
+            $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($vehicleId);
 
             if ($vehicle->current_mileage >= $vehicle->next_oil_change_mileage) {
                 throw ValidationException::withMessages([
@@ -49,7 +52,16 @@ class CreateRouteSheetAction
                 ]);
             }
 
-            $driver = Driver::findOrFail($driverId);
+            if (WorkshopWorkOrder::query()
+                ->where('vehicle_id', $vehicle->id)
+                ->whereNull('exit_date')
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'vehicle_id' => ['El vehículo tiene una orden de taller abierta.'],
+                ]);
+            }
+
+            $driver = Driver::query()->lockForUpdate()->findOrFail($driverId);
 
             if (! $driver->is_available) {
                 throw ValidationException::withMessages([
@@ -65,6 +77,49 @@ class CreateRouteSheetAction
             if (! $activeLicense) {
                 throw ValidationException::withMessages([
                     'driver_id' => ['El conductor no tiene licencia vigente con puntos.'],
+                ]);
+            }
+
+            $start = CarbonImmutable::parse($request->departure_date->toDateString().' '.$request->departure_time);
+            $end = CarbonImmutable::parse($request->return_date->toDateString().' '.$request->return_time);
+            if ($end->lessThanOrEqualTo($start)) {
+                throw ValidationException::withMessages([
+                    'return_date' => ['El fin del viaje debe ser posterior a la salida.'],
+                ]);
+            }
+
+            $candidateSheets = RouteSheet::query()
+                ->where(function ($query) use ($vehicleId, $driverId) {
+                    $query->where('vehicle_id', $vehicleId)->orWhere('driver_id', $driverId);
+                })
+                ->whereIn('trip_status', ['programado', 'en_ruta', 'pendiente_feedback'])
+                ->where(function ($query) {
+                    $query->whereNull('driver_response')->orWhere('driver_response', '!=', 'rechazado');
+                })
+                ->whereHas('request', fn ($query) => $query
+                    ->whereDate('departure_date', '<=', $end->toDateString())
+                    ->whereDate('return_date', '>=', $start->toDateString()))
+                ->with('request')
+                ->get();
+
+            $hasScheduleConflict = $candidateSheets->contains(function (RouteSheet $candidate) use ($start, $end) {
+                if (! $candidate->request?->departure_date || ! $candidate->request?->return_date) {
+                    return false;
+                }
+
+                $candidateStart = CarbonImmutable::parse(
+                    $candidate->request->departure_date->toDateString().' '.$candidate->request->departure_time
+                );
+                $candidateEnd = CarbonImmutable::parse(
+                    $candidate->request->return_date->toDateString().' '.$candidate->request->return_time
+                );
+
+                return ScheduleInterval::overlaps($start, $end, $candidateStart, $candidateEnd);
+            });
+
+            if ($hasScheduleConflict) {
+                throw ValidationException::withMessages([
+                    'vehicle_id' => ['El vehículo o conductor tiene otra asignación que se cruza con este horario.'],
                 ]);
             }
 

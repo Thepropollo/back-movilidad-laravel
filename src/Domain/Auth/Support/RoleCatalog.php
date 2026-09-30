@@ -18,6 +18,11 @@ final class RoleCatalog
 
     public const ESTUDIANTE = 'estudiante';
 
+    public static function publicRegistrationRole(): string
+    {
+        return self::ESTUDIANTE;
+    }
+
     /** @var array<string, string> */
     public const ALIASES = [
         'jefe_transporte' => self::SECRETARIA,
@@ -46,6 +51,24 @@ final class RoleCatalog
             fn (?string $role) => self::canonicalize($role),
             $roles
         ))));
+    }
+
+    /**
+     * Replace only the primary role and retain any secondary roles.
+     *
+     * @param  list<string>  $current
+     * @return list<string>
+     */
+    public static function replacePrimaryRole(array $current, ?string $currentPrimary, string $nextPrimary): array
+    {
+        $currentPrimary = self::canonicalize($currentPrimary);
+        $next = array_values(array_filter(
+            self::canonicalizeMany($current),
+            fn (string $role) => $role !== $currentPrimary
+        ));
+        $next[] = $nextPrimary;
+
+        return self::canonicalizeMany($next);
     }
 
     /**

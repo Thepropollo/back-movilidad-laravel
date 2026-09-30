@@ -116,7 +116,7 @@ class GenerateAlertsAction
             }
         }
 
-        foreach (MobilizationRequest::with('requester')->where('status', 'pendiente_secretaria')->get() as $request) {
+        foreach (MobilizationRequest::with(['requester.roles', 'requester.role'])->where('status', 'pendiente_secretaria')->get() as $request) {
             $this->upsert(
                 key: 'auth:'.$request->id,
                 type: 'viaje_autorizar',
@@ -128,9 +128,18 @@ class GenerateAlertsAction
                 audience: 'secretaria',
                 detail: $this->requestDetail($request, 'Autorizar o rechazar en Secretaría'),
             );
+            $this->notifyRequester(
+                $request,
+                'req-sec:'.$request->id,
+                'solicitud_en_tramite',
+                'media',
+                'Su solicitud está en Secretaría',
+                'El trámite digital espera autorización. No hace falta oficio físico.',
+                'Ver flujo del proceso'
+            );
         }
 
-        foreach (MobilizationRequest::with('requester')->where('status', 'pendiente_rectorado')->get() as $request) {
+        foreach (MobilizationRequest::with(['requester.roles', 'requester.role'])->where('status', 'pendiente_rectorado')->get() as $request) {
             $detail = $this->requestDetail($request, 'Aprobar o rechazar viaje externo');
             $this->upsert(
                 key: 'vic:'.$request->id,
@@ -154,10 +163,19 @@ class GenerateAlertsAction
                 audience: 'secretaria',
                 detail: $this->requestDetail($request, 'Esperar visto bueno de Vicerrectorado'),
             );
+            $this->notifyRequester(
+                $request,
+                'req-vic:'.$request->id,
+                'solicitud_en_tramite',
+                'media',
+                'Su viaje externo espera Vicerrectorado',
+                'Secretaría ya autorizó. Falta el visto bueno académico.',
+                'Ver flujo del proceso'
+            );
         }
 
         foreach (
-            MobilizationRequest::with('requester')
+            MobilizationRequest::with(['requester.roles', 'requester.role'])
                 ->whereIn('status', ['autorizada_secretaria', 'aprobado_rectorado'])
                 ->whereDoesntHave('routeSheet')
                 ->get() as $request
@@ -172,6 +190,31 @@ class GenerateAlertsAction
                 entityId: $request->id,
                 audience: 'secretaria',
                 detail: $this->requestDetail($request, 'Asignar conductor y vehículo'),
+            );
+            $this->notifyRequester(
+                $request,
+                'req-asig:'.$request->id,
+                'solicitud_autorizada',
+                'media',
+                'Solicitud autorizada: esperando unidad',
+                'Ya tiene visto bueno. Secretaría asignará vehículo y conductor.',
+                'Ver flujo del proceso'
+            );
+        }
+
+        foreach (
+            MobilizationRequest::with(['requester.roles', 'requester.role'])
+                ->where('status', 'rechazada')
+                ->get() as $request
+        ) {
+            $this->notifyRequester(
+                $request,
+                'req-rech:'.$request->id,
+                'solicitud_rechazada',
+                'alta',
+                'Solicitud rechazada',
+                $request->secretaria_observation ?: 'Revise la observación en el flujo del trámite.',
+                'Ver motivo y fases'
             );
         }
 
@@ -320,6 +363,42 @@ class GenerateAlertsAction
         }
 
         Alert::query()->whereNotIn('key', $this->seenKeys)->delete();
+    }
+
+    private function notifyRequester(
+        MobilizationRequest $request,
+        string $key,
+        string $type,
+        string $severity,
+        string $title,
+        string $message,
+        string $action,
+    ): void {
+        if (! $request->requester_id) {
+            return;
+        }
+
+        $this->upsert(
+            key: $key,
+            type: $type,
+            severity: $severity,
+            title: $title,
+            message: $this->tripHeadline($request).' · '.$message,
+            route: $this->followRoute($request),
+            entityId: $request->id,
+            audience: 'docente',
+            userId: $request->requester_id,
+            detail: $this->requestDetail($request, $action),
+        );
+    }
+
+    private function followRoute(MobilizationRequest $request): string
+    {
+        $path = $request->requester?->hasRole(['responsable_facultad'])
+            ? '/app/facultad/seguimiento'
+            : '/app/docente/flujo';
+
+        return $path.'?id='.$request->id;
     }
 
     private function tripHeadline(?MobilizationRequest $request): string
