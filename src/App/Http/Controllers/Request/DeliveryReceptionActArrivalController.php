@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
-use Domain\Requests\Models\DeliveryReceptionAct;
-use Domain\Requests\Models\RouteSheet;
+use Domain\Requests\Actions\RegisterDeliveryArrivalAction;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class DeliveryReceptionActArrivalController extends Controller
 {
-    public function __invoke(Request $request)
+    public function __invoke(Request $request, RegisterDeliveryArrivalAction $action)
     {
         $user = $request->user();
         if (! $user) {
@@ -19,8 +17,7 @@ class DeliveryReceptionActArrivalController extends Controller
 
         $request->validate([
             'hoja_ruta_id' => 'required|integer|exists:route_sheets,id',
-            'mecanico_o_guardia_id' => 'required|integer|exists:users,id',
-            'kilometraje_garita' => 'required|integer',
+            'kilometraje_garita' => 'required|integer|min:0',
             'nivel_combustible' => 'required|string|in:1/4,1/2,3/4,full',
         ], [
             'hoja_ruta_id.required' => 'La hoja de ruta es obligatoria.',
@@ -28,43 +25,12 @@ class DeliveryReceptionActArrivalController extends Controller
             'nivel_combustible.required' => 'El nivel de combustible es obligatorio.',
         ]);
 
-        $hojaRutaId = (int) $request->input('hoja_ruta_id');
-        $kilometraje = (int) $request->input('kilometraje_garita');
-        $fuelLevel = $request->input('nivel_combustible');
-        $mecanicoId = (int) $request->input('mecanico_o_guardia_id');
-
-        $routeSheet = RouteSheet::findOrFail($hojaRutaId);
-        $vehicle = $routeSheet->vehicle;
-
-        if ($routeSheet->initial_mileage && $kilometraje < $routeSheet->initial_mileage) {
-            return response()->json([
-                'message' => "El kilometraje de llegada ({$kilometraje}) no puede ser menor al de salida ({$routeSheet->initial_mileage}).",
-            ], 422);
-        }
-
-        DB::transaction(function () use ($routeSheet, $vehicle, $mecanicoId, $kilometraje, $fuelLevel) {
-            // Guardar acta en delivery_reception_acts
-            DeliveryReceptionAct::create([
-                'route_sheet_id' => $routeSheet->id,
-                'mechanic_or_guard_id' => $mecanicoId,
-                'registration_type' => 'llegada',
-                'fuel_level' => $fuelLevel,
-                'checkpoint_mileage' => $kilometraje,
-                'general_observations' => 'Retorno de comisión registrado en garita.',
-            ]);
-
-            // Actualizar la hoja de ruta
-            $routeSheet->update([
-                'final_mileage' => $kilometraje,
-                'trip_status' => 'pendiente_feedback',
-            ]);
-
-            // Liberar temporalmente el vehículo a disponible
-            $vehicle->update([
-                'operational_status' => 'disponible',
-                'current_mileage' => $kilometraje,
-            ]);
-        });
+        $routeSheet = $action->execute(
+            routeSheetId: (int) $request->input('hoja_ruta_id'),
+            actorId: (int) $user->id,
+            checkpointMileage: (int) $request->input('kilometraje_garita'),
+            fuelLevel: (string) $request->input('nivel_combustible')
+        );
 
         return response()->json([
             'message' => 'Llegada registrada exitosamente. Pendiente de co-evaluación de los pasajeros.',

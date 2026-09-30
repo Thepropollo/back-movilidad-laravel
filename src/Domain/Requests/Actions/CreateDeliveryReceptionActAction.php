@@ -7,6 +7,7 @@ use Domain\Requests\Models\ActChecklistDetail;
 use Domain\Requests\Models\ChecklistInventoryComponent;
 use Domain\Requests\Models\DeliveryReceptionAct;
 use Domain\Requests\Models\RouteSheet;
+use Domain\Vehicles\Models\Vehicle;
 use Domain\Workshop\Models\IssueLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -35,8 +36,29 @@ class CreateDeliveryReceptionActAction
             $components
         ) {
             // 1. Obtener la hoja de ruta
-            $routeSheet = RouteSheet::with(['vehicle', 'driver'])->findOrFail($routeSheetId);
-            $vehicle = $routeSheet->vehicle;
+            $routeSheet = RouteSheet::query()->with('driver')->lockForUpdate()->findOrFail($routeSheetId);
+            $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($routeSheet->vehicle_id);
+
+            if ($registrationType === 'salida'
+                && ($routeSheet->trip_status !== 'programado' || $routeSheet->driver_response !== 'aceptado')) {
+                throw ValidationException::withMessages([
+                    'route_sheet_id' => ['La salida requiere una asignación aceptada que aún no ha iniciado el viaje.'],
+                ]);
+            }
+
+            if ($registrationType === 'llegada'
+                && ($routeSheet->trip_status !== 'en_ruta' || $routeSheet->driver_response !== 'aceptado')) {
+                throw ValidationException::withMessages([
+                    'route_sheet_id' => ['La llegada requiere un viaje aceptado y en curso.'],
+                ]);
+            }
+
+            if ($registrationType === 'llegada'
+                && $routeSheet->deliveryActs()->where('registration_type', 'llegada')->exists()) {
+                throw ValidationException::withMessages([
+                    'route_sheet_id' => ['La inspección de llegada ya fue registrada.'],
+                ]);
+            }
 
             // Validar kilometraje coherente
             if ($registrationType === 'salida' && $checkpointMileage < $vehicle->current_mileage) {
@@ -102,6 +124,11 @@ class CreateDeliveryReceptionActAction
                 if ($registrationType === 'salida') {
                     $routeSheet->update([
                         'trip_status' => 'programado',
+                    ]);
+                } else {
+                    $routeSheet->update([
+                        'final_mileage' => $checkpointMileage,
+                        'trip_status' => 'pendiente_feedback',
                     ]);
                 }
             } else {
