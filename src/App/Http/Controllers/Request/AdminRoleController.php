@@ -11,7 +11,7 @@ class AdminRoleController extends Controller
     public function __invoke(Request $request)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 

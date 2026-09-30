@@ -13,7 +13,7 @@ class AdminVehicleController extends Controller
     public function index(Request $request)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -23,7 +23,7 @@ class AdminVehicleController extends Controller
     public function store(Request $request)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -62,7 +62,7 @@ class AdminVehicleController extends Controller
     public function update(Request $request, $id)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -102,7 +102,7 @@ class AdminVehicleController extends Controller
     public function destroy(Request $request, $id)
     {
         $admin = $request->user();
-        if (! $admin || $admin->role->name !== 'jefe_transporte') {
+        if (! $admin || ! $admin->hasRole('secretaria')) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
