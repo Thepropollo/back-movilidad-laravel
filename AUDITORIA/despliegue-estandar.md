@@ -1,6 +1,6 @@
 # Despliegue estándar (propuesta neutral)
 
-El proveedor y la topología siguen sin definirse. Esta guía usa PostgreSQL y variables de entorno estándar, y no presupone AWS, Render, VPS ni otro servicio concreto. No se ejecutaron migraciones sobre una instalación nueva durante esta auditoría porque no hubo un motor local desechable disponible.
+El proveedor y la topología siguen sin definirse. Esta guía usa PostgreSQL y variables de entorno estándar, y no presupone AWS, Render, VPS ni otro servicio concreto. Durante la auditoría, las migraciones se ejecutaron desde cero en una base PostgreSQL desechable; eso verifica el esquema y no equivale a un despliegue de producción.
 
 ## Preparación de una release
 
@@ -15,7 +15,7 @@ composer audit --locked --no-dev
 npm audit
 ```
 
-El runtime de pruebas necesita `pdo_sqlite`; los tests que dependen de bloqueos y concurrencia también deben correr contra PostgreSQL desechable. El despliegue debe guardar el `composer.lock` y `package-lock.json` de la misma revisión que el artefacto.
+Configure el driver PDO del motor elegido para las pruebas. Los tests de esta auditoría corrieron en PostgreSQL desechable porque el runtime disponible no tiene `pdo_sqlite`; los casos de bloqueos y concurrencia deben ejecutarse contra el mismo motor usado en producción. El despliegue debe guardar el `composer.lock` y `package-lock.json` de la misma revisión que el artefacto.
 
 ## Configuración y arranque
 
@@ -50,6 +50,6 @@ Registra fecha, revisión, resultado de integridad y duración de cada ensayo; m
 ## Límites conocidos
 
 - Proveedor, dominio, orígenes CORS, proxy confiable, almacenamiento durable y servicio de correo: requieren decisión.
-- Este backend no contiene una receta de despliegue probada ni un entorno reproducible de PostgreSQL desechable dentro de la auditoría.
+- La imagen Docker y el despliegue en un proveedor siguen sin probarse; las comprobaciones locales de migración, tests y HTTP usaron infraestructura desechable bajo `/tmp`.
 - El directorio `storage/app/private` debe persistir fuera del contenedor o trasladarse a un disco privado con adaptador configurado; el disco S3 opcional del esqueleto no está instalado ni verificado.
 - `APP_KEY` y claves de firma, si se define una firma criptográfica real, deben administrarse y rotarse con un procedimiento compatible con documentos históricos.

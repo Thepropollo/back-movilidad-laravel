@@ -5,28 +5,31 @@ Inspección estática realizada el 2026-09-29 en la rama `audit/backend`. No se 
 ## Stack, instalación y despliegue
 
 - PHP: el repositorio requiere `^8.3`; el runtime inspeccionado es PHP 8.5.9.
-- Framework: Laravel 13.17.0 (`composer.lock`).
+- Framework: Laravel 13.34.0 (`composer.lock`; PHP runtime PHP 8.5.9).
 - ORM y migraciones: Eloquent y migraciones de Laravel.
 - Base de datos: la configuración predeterminada permite SQLite; el `.env` presente declara PostgreSQL en `127.0.0.1`, base `tesis`, entorno `local`. El servidor local no estaba escuchando en el puerto 5432. No se imprimieron ni copiaron credenciales y no se conectó a esa base.
-- Pruebas: `phpunit.xml` configura SQLite `:memory:`. Este PHP tiene `pdo_pgsql`, pero no `pdo_sqlite`; la suite falla antes de ejecutar migraciones.
-- Dependencias PHP: Composer con `composer.lock`. Dependencias JS: npm; `package.json` declara Vite/Tailwind/Concurrently, pero no hay `package-lock.json` y `node_modules` no existe.
-- Despliegue: no hay Dockerfile, compose, manifiesto de proveedor ni guía de despliegue. El proveedor queda por definir. Laravel ofrece `/up` como healthcheck.
+- Pruebas: el PHP inspeccionado tiene `pdo_pgsql`, pero no `pdo_sqlite`. `phpunit.xml` en el árbol de trabajo apunta a PostgreSQL local `tesis_test`; esa instancia no se usó. Para evitar tocar `.env` (`tesis`) ni esa configuración, se crearon clústeres y bases PostgreSQL desechables bajo `/tmp` con nombres `backend_audit_migrate` y `backend_audit_final_test`; las variables se pasaron explícitamente a cada comando. Suite final tras `e22c766`: 48 tests y 644 aserciones pasan. Migraciones desde cero en `backend_audit_migrate`: pasan. No se ejecutaron semillas.
+- Dependencias PHP: Composer con `composer.lock`. Dependencias JS: npm con `package-lock.json`; `npm ci` y `npm run build` pasaron.
+- Despliegue: proveedor y proxy sin decidir. No hay compose ni artefacto probado; se añadió `Dockerfile.example` solo como propuesta, más guía provider-neutral. Laravel ofrece `/up` como healthcheck; el servidor local respondió 200.
 - Primer usuario privilegiado: el catálogo identifica a Secretaría como rol con funciones administrativas; no existe un rol administrador independiente. `php artisan app:bootstrap-secretaria` solicita los datos y la contraseña de forma interactiva, y solo crea la primera cuenta de Secretaría. El seeder de demostración se bloquea en producción; no debe usarse como bootstrap.
-- Contrato API: no existe OpenAPI/Swagger. Las 109 rutas registradas (104 bajo `/api`) están en [endpoints.md](endpoints.md), obtenidas de `php artisan route:list --json`.
+- Contrato API: OpenAPI 3.1 y Scalar están versionados; 84 paths y 107 operaciones coinciden por método/ruta con las operaciones API de `route:list`. Los endpoints de documentación son públicos y Scalar referencia jsDelivr. Las pruebas validan estructura, rutas y contratos señalados, pero no todos los campos y reglas de las 104 rutas. `route:list` registró 113 rutas (104 registros API y 9 web/sistema); ver [endpoints.md](endpoints.md).
 - Estructura: `src/App/Http/Controllers/` contiene controladores; `src/Domain/` contiene modelos y acciones; `routes/` define API/web; `database/migrations/`, `factories/` y `seeders/` definen persistencia y datos.
 
 ## Verificación de instalación, calidad y arranque
 
 | Comprobación inicial | Resultado | Evidencia |
 |---|---|---|
-| Laravel / rutas | Pasa | `php artisan --version` informó Laravel Framework 13.17.0; `php artisan route:list --json` produjo 109 rutas. |
+| Laravel / rutas | Pasa | `php artisan --version` informa Laravel Framework 13.34.0; `php artisan route:list --json` produce 113 rutas (104 bajo `/api`). |
 | Validación Composer | Pasa | `composer validate --no-check-publish`: `./composer.json is valid`. |
 | Sintaxis PHP | Pasa | `find src routes database -type f -name '*.php' -print0 \| xargs -0 -n1 php -l`: todos los archivos inspeccionados informaron `No syntax errors detected`. |
-| Tests | Falla por entorno | `APP_ENV=testing DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= php artisan test`: 18 tests, 2 pasan y 16 errores `could not find driver` por falta de PDO SQLite, antes de migraciones. No se leyó ni modificó una base con datos. |
-| Build JS | Falla por instalación ausente | `npm run build`: `vite: command not found`; no hay dependencias instaladas ni lock npm. |
-| Auditoría Composer | Falla de seguridad | `composer audit --locked --no-dev`: 18 advisories en 4 paquetes; 1 en Laravel, 6 Guzzle, 10 CommonMark, 1 Flysystem. Incluye avisos altos. Versiones bloqueadas: Laravel 13.17.0, Guzzle 7.12.3, CommonMark 2.8.2 y Flysystem 3.35.1. |
-| Arranque HTTP | No verificado | El sandbox impide abrir sockets TCP/Unix; no se pudo iniciar PostgreSQL ni se pudo hacer una petición HTTP local. El comando de rutas sí pudo arrancar Laravel en CLI. |
-| Instalación limpia / migración desde cero | No verificado | El vendor está presente; la suite falla por falta de driver SQLite y no hay instancia temporal de PostgreSQL accesible. |
+| Tests | Pasa con base desechable | `APP_ENV=testing`, PostgreSQL `backend_audit_final_test` en `127.0.0.1:55433`: 48 tests, 644 aserciones, cero fallos. Se pasó la conexión explícitamente; `.env` (`tesis`) y `phpunit.xml` (`tesis_test`) no fueron usados. |
+| Autorización HTTP por rol | Pasa para una ruta administrativa | `AdminRouteRoleAccessTest`: petición anónima 401; seis roles sin Secretaría 403; Secretaría 200; combinaciones multirol con/sin Secretaría 200/403. No es una matriz dinámica de todas las rutas. |
+| Build JS | Pasa | `npm ci --ignore-scripts --no-audit --no-fund` instala desde lockfile y `npm run build` genera manifest y assets sin descargar fuentes externas. |
+| Auditoría Composer | Pasa al cierre | La auditoría inicial detectó 18 advisories; se actualizaron paquetes dentro de sus mismas versiones mayores. `composer audit --locked --no-dev` al cierre informa cero advisories. |
+| Arranque HTTP | Pasa (smoke test local) | Laravel se arrancó con configuración explícita de la BD desechable. `GET /up` 200; `/docs` redirige 302; `/scalar` 200; `/openapi.json` 200 y anuncia OpenAPI 3.1 con 84 paths. No se probó detrás de un proxy/TLS de producción. |
+| Migración desde cero | Pasa en PostgreSQL desechable | Clúster local temporal, base nueva `backend_audit_migrate`: `php artisan migrate --force` completó todas las migraciones sin error. No se ejecutaron semillas. |
+| Linter/formatter | No cumple | `vendor/bin/pint --test` reporta 12 archivos que no cumplen formato; se dejó sin autoformatear para evitar difundir cambios de estilo dentro de módulos funcionales en esta auditoría de seguridad. |
+| Imagen Docker | No verificado | `Dockerfile.example` está marcado como propuesta y no se construyó ni se ejecutó en contenedor. |
 
 ## Persistencia: tablas y relaciones observadas en migraciones/modelos
 
@@ -37,7 +40,7 @@ Inspección estática realizada el 2026-09-29 en la rama `audit/backend`. No se 
 - Operación: `service_stations` tiene `fuel_orders`; `issue_logs` enlaza vehículo, conductor informante y opcionalmente hoja; `workshop_work_orders` enlaza vehículo, novedad y usuarios responsable/supervisor; `work_order_supply_provisions` enlaza órdenes e insumos.
 - Finanzas y soporte: `rate_configurations`, `driver_compensations` (una por hoja), `trip_evaluations`, `system_logs`, `alerts`, `alert_reads`, `generated_documents` y `document_signatures`.
 - Infraestructura Laravel: `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`.
-- Las migraciones usan claves foráneas en la mayor parte de relaciones y decimales para tarifas, pagos y combustible. No hay restricción única visible para participante por solicitud ni evaluación por pasajero/viaje; el alta de vales no tiene unicidad por hoja. No se ejecutó `migrate:fresh` por la falta de motor de prueba disponible.
+- Las migraciones usan claves foráneas en la mayor parte de relaciones y decimales para tarifas, pagos y combustible. No hay restricción única visible para participante por solicitud ni evaluación por pasajero/viaje; el alta de vales tampoco tiene unicidad por hoja en base de datos. Las migraciones sí se verificaron desde cero en PostgreSQL desechable; no se usó `migrate:fresh` sobre ninguna base existente.
 
 ## Servicios externos
 
@@ -45,7 +48,7 @@ Inspección estática realizada el 2026-09-29 en la rama `audit/backend`. No se 
 - `config/services.php` define credenciales opcionales para Postmark, Resend, SES y Slack, pero el código no las consume.
 - `config/filesystems.php` ofrece un disco S3 opcional, pero no está instalada la dependencia del adaptador AWS; el disco usado por documentos es `local` privado con enlaces de descarga autorizados.
 - La aplicación almacena coordenadas de paradas/destinos; no se encontró integración activa con Google Maps, geocodificación o proveedor de rutas.
-- El correo del ejemplo usa `MAIL_MAILER=log`; no hay flujos de correo verificados.
+- La configuración Scalar del árbol de trabajo carga recursos desde jsDelivr; el correo de ejemplo usa `MAIL_MAILER=log`; no hay flujos de correo verificados.
 
 ## Datos personales almacenados
 
