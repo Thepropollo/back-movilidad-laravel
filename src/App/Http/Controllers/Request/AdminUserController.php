@@ -11,6 +11,7 @@ use Domain\Requests\Models\MobilizationRequest;
 use Domain\Requests\Models\RouteSheet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class AdminUserController extends Controller
 {
@@ -58,7 +59,7 @@ class AdminUserController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => 'required|email|max:100|unique:users,email',
-            'password' => 'required|string|min:6',
+            'password' => ['required', 'string', Password::min(12)->letters()->numbers()],
             'faculty_institution' => 'required|string|max:150',
             'role_id' => 'required|exists:roles,id',
         ], [
@@ -107,7 +108,7 @@ class AdminUserController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => "required|email|max:100|unique:users,email,{$id}",
-            'password' => 'nullable|string|min:6',
+            'password' => ['nullable', 'string', Password::min(12)->letters()->numbers()],
             'faculty_institution' => 'required|string|max:150',
             'role_id' => 'required|exists:roles,id',
             'is_active' => 'required|boolean',

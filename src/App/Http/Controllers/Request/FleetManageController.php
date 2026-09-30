@@ -3,20 +3,16 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use Domain\Auth\Actions\CreateDriverAction;
 use Domain\Auth\Models\Driver;
-use Domain\Auth\Models\DriverLicense;
-use Domain\Auth\Models\Role;
-use Domain\Auth\Models\User;
-use Domain\Auth\Support\RoleCatalog;
 use Domain\Vehicles\Models\Vehicle;
 use Domain\Vehicles\Models\VehicleLegalDocument;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class FleetManageController extends Controller
 {
-    public function storeDriver(Request $request)
+    public function storeDriver(Request $request, CreateDriverAction $createDriver)
     {
         if (! $request->user()->hasRole(['secretaria', 'jefe_transporte'])) {
             return response()->json(['message' => 'Acceso denegado.'], 403);
@@ -27,43 +23,14 @@ class FleetManageController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => 'required|email|max:100|unique:users,email',
-            'password' => 'nullable|string|min:6',
+            'password' => ['required', 'string', Password::min(12)->letters()->numbers()],
             'contract_type' => 'required|in:nombramiento,contrato',
             'license_type' => 'required|string|max:10',
             'current_points' => 'required|integer|min:0',
             'expiration_date' => 'required|date',
         ]);
 
-        $driver = DB::transaction(function () use ($data) {
-            $role = Role::where('name', RoleCatalog::CONDUCTOR)->first();
-            $user = User::create([
-                'national_id' => $data['national_id'],
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'email' => $data['email'],
-                'password' => Hash::make($data['password'] ?? 'password'),
-                'faculty_institution' => 'DIRECCIÓN DE TRANSPORTE Y MOVILIDAD',
-                'role_id' => $role?->id,
-            ]);
-            if ($role) {
-                $user->roles()->syncWithoutDetaching([$role->id]);
-            }
-
-            $driver = Driver::create([
-                'user_id' => $user->id,
-                'contract_type' => $data['contract_type'],
-                'is_available' => true,
-            ]);
-
-            DriverLicense::create([
-                'driver_id' => $driver->id,
-                'license_type' => $data['license_type'],
-                'current_points' => $data['current_points'],
-                'expiration_date' => $data['expiration_date'],
-            ]);
-
-            return $driver->load(['user', 'licenses']);
-        });
+        $driver = $createDriver->execute($data);
 
         return response()->json(['message' => 'Conductor registrado.', 'driver' => $driver], 201);
     }

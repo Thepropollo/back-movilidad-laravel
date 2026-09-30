@@ -18,6 +18,11 @@ final class RoleCatalog
 
     public const ESTUDIANTE = 'estudiante';
 
+    public static function publicRegistrationRole(): string
+    {
+        return self::ESTUDIANTE;
+    }
+
     /** @var array<string, string> */
     public const ALIASES = [
         'jefe_transporte' => self::SECRETARIA,

@@ -43,4 +43,9 @@ class UserRoleResolutionTest extends TestCase
 
         $this->assertSame(['responsable_facultad', 'vicerrector'], $next);
     }
+
+    public function test_public_registration_has_only_the_least_privileged_role(): void
+    {
+        $this->assertSame('estudiante', RoleCatalog::publicRegistrationRole());
+    }
 }

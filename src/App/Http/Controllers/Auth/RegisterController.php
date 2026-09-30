@@ -32,10 +32,13 @@ class RegisterController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => 'required|string|email|max:100|unique:users,email',
-            'password' => ['required', 'string', Password::min(10)->letters()->numbers()],
+            'password' => ['required', 'string', Password::min(12)->letters()->numbers()],
             'faculty_institution' => 'required|string|max:150',
-            // Solo roles no privilegiados; el servidor ignora secretaria/vicerrector/etc.
-            'role_name' => 'nullable|in:docente,estudiante,solicitante,pasajero',
+            'id' => 'prohibited',
+            'role_id' => 'prohibited',
+            'role_name' => 'prohibited',
+            'roles' => 'prohibited',
+            'is_active' => 'prohibited',
         ]);
 
         if ($validator->fails()) {
@@ -47,14 +50,7 @@ class RegisterController extends Controller
         }
 
         $payload = $request->all();
-        $requested = RoleCatalog::canonicalize($request->input('role_name')) ?? RoleCatalog::DOCENTE;
-        if (! in_array($requested, [RoleCatalog::DOCENTE, RoleCatalog::ESTUDIANTE], true)
-            && ! in_array($requested, ['solicitante', 'pasajero'], true)) {
-            $requested = RoleCatalog::DOCENTE;
-        }
-        $payload['role_name'] = $requested === 'pasajero' ? RoleCatalog::ESTUDIANTE
-            : ($requested === 'solicitante' ? RoleCatalog::DOCENTE : $requested);
-        unset($payload['role_id']);
+        $payload['role_name'] = RoleCatalog::publicRegistrationRole();
 
         $dto = UserData::fromRequest(new Request($payload));
         $user = $action->execute($dto);
