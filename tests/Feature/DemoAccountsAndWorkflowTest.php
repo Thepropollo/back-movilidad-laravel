@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Domain\Auth\Models\Driver;
 use Domain\Auth\Models\User;
 use Domain\Vehicles\Models\Vehicle;
+use Domain\Workshop\Models\IssueLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -101,9 +102,10 @@ class DemoAccountsAndWorkflowTest extends TestCase
 
         $this->actingAsEmail('mecanico@uleam.edu.ec');
         $components = collect($this->getJson('/api/inspecciones/componentes')->assertOk()->json())
-            ->map(fn (array $row) => [
+            ->values()
+            ->map(fn (array $row, int $index) => [
                 'id' => $row['id'],
-                'physical_condition' => 'BUENO',
+                'physical_condition' => $index === 0 ? 'MALO' : 'BUENO',
             ])
             ->all();
 
@@ -113,6 +115,35 @@ class DemoAccountsAndWorkflowTest extends TestCase
             'fuel_level' => 'full',
             'checkpoint_mileage' => 45000,
             'components' => $components,
+        ])->assertCreated()
+            ->assertJsonPath('act.registration_type', 'salida');
+
+        $issue = IssueLog::where('route_sheet_id', $sheet['id'])
+            ->where('description', 'like', 'Novedad en inspección de salida%')
+            ->firstOrFail();
+        $this->actingAsEmail('mecanico@uleam.edu.ec');
+        $workOrder = $this->postJson('/api/ordenes-taller', [
+            'issue_log_id' => $issue->id,
+            'vehicle_id' => $vehicleId,
+            'responsible_mechanic_id' => User::where('email', 'mecanico@uleam.edu.ec')->value('id'),
+            'maintenance_type' => 'correctivo',
+            'work_details' => 'Reparar el componente detectado en la inspección de salida.',
+        ])->assertCreated()
+            ->json('work_order');
+
+        $this->patchJson("/api/ordenes-taller/{$workOrder['id']}/cerrar", [
+            'insumos_utilizados' => [],
+        ])->assertOk();
+
+        $this->postJson('/api/actas-entrega', [
+            'route_sheet_id' => $sheet['id'],
+            'registration_type' => 'salida',
+            'fuel_level' => 'full',
+            'checkpoint_mileage' => 45000,
+            'components' => collect($components)->map(fn (array $row) => [
+                'id' => $row['id'],
+                'physical_condition' => 'BUENO',
+            ])->all(),
         ])->assertCreated();
 
         $this->actingAsEmail('docente@uleam.edu.ec');
