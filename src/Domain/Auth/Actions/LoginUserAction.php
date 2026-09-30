@@ -12,7 +12,7 @@ class LoginUserAction
     {
         $user = User::where('email', $email)->first();
 
-        if (! $user || ! Hash::check($password, $user->password)) {
+        if (! $user || ! $user->is_active || ! Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Las credenciales proporcionadas son incorrectas.'],
             ]);

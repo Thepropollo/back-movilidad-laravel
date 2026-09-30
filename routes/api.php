@@ -69,7 +69,7 @@ Route::middleware('throttle:10,1')->group(function () {
     Route::post('/register', RegisterController::class);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/logout', LogoutController::class);
     Route::get('/me', MeController::class);
 
