@@ -33,6 +33,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new \RuntimeException(
+                'DatabaseSeeder contiene cuentas y datos de demostración; no debe ejecutarse en producción.'
+            );
+        }
+
         $roles = [
             ['name' => 'secretaria', 'description' => 'Secretaría / Administrativo — eje central operativo.'],
             ['name' => 'conductor', 'description' => 'Conductor de vehículos institucionales.'],
