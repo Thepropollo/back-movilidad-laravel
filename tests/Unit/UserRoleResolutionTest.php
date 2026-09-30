@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use Domain\Auth\Models\Role;
 use Domain\Auth\Models\User;
+use Domain\Auth\Support\RoleCatalog;
 use Tests\TestCase;
 
 class UserRoleResolutionTest extends TestCase
@@ -30,5 +31,16 @@ class UserRoleResolutionTest extends TestCase
         $this->assertTrue($user->hasRole(['docente', 'responsable_facultad']));
         $this->assertTrue($user->hasRole('responsable_facultad'));
         $this->assertFalse($user->hasRole('secretaria'));
+    }
+
+    public function test_replacing_primary_role_preserves_secondary_roles_and_drops_revoked_primary(): void
+    {
+        $next = RoleCatalog::replacePrimaryRole(
+            ['docente', 'responsable_facultad'],
+            'solicitante',
+            'vicerrector'
+        );
+
+        $this->assertSame(['responsable_facultad', 'vicerrector'], $next);
     }
 }

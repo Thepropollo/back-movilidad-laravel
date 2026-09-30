@@ -49,6 +49,24 @@ final class RoleCatalog
     }
 
     /**
+     * Replace only the primary role and retain any secondary roles.
+     *
+     * @param  list<string>  $current
+     * @return list<string>
+     */
+    public static function replacePrimaryRole(array $current, ?string $currentPrimary, string $nextPrimary): array
+    {
+        $currentPrimary = self::canonicalize($currentPrimary);
+        $next = array_values(array_filter(
+            self::canonicalizeMany($current),
+            fn (string $role) => $role !== $currentPrimary
+        ));
+        $next[] = $nextPrimary;
+
+        return self::canonicalizeMany($next);
+    }
+
+    /**
      * Mechanic-only users cannot receive conductor. Conductor may gain mechanic.
      *
      * @param  list<string>  $current

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use Domain\Auth\Actions\UpdateUserAction;
 use Domain\Auth\Models\SystemLog;
 use Domain\Auth\Models\User;
 use Domain\Requests\Models\DeliveryReceptionAct;
@@ -92,7 +93,7 @@ class AdminUserController extends Controller
         ], 210);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, UpdateUserAction $updateUser)
     {
         $admin = $request->user();
         if (! $admin || ! $admin->hasRole('secretaria')) {
@@ -121,15 +122,18 @@ class AdminUserController extends Controller
             'last_name' => $request->input('last_name'),
             'email' => $request->input('email'),
             'faculty_institution' => $request->input('faculty_institution'),
-            'role_id' => $request->input('role_id'),
-            'is_active' => $request->input('is_active'),
         ];
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->input('password'));
         }
 
-        $user->update($data);
+        $user = $updateUser->execute(
+            $user,
+            $data,
+            (int) $request->input('role_id'),
+            (bool) $request->input('is_active')
+        );
 
         SystemLog::create([
             'user_id' => $admin->id,
