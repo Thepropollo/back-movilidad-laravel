@@ -83,7 +83,7 @@ class DemoAccountsAndWorkflowTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('request.status', 'autorizada_secretaria');
 
-        $vehicleId = Vehicle::where('plate', 'MBA-1234')->value('id');
+        $vehicleId = Vehicle::where('plate', 'MBA-2468')->value('id');
         $driverId = Driver::where('user_id', User::where('email', 'conductor1@uleam.edu.ec')->value('id'))->value('id');
 
         $sheet = $this->postJson('/api/hojas-ruta', [
@@ -121,6 +121,10 @@ class DemoAccountsAndWorkflowTest extends TestCase
         $issue = IssueLog::where('route_sheet_id', $sheet['id'])
             ->where('description', 'like', 'Novedad en inspección de salida%')
             ->firstOrFail();
+        $this->assertSame((int) $sheet['id'], (int) $issue->route_sheet_id);
+        $this->assertSame('programado', $issue->routeSheet->trip_status);
+        $this->assertSame('aceptado', $issue->routeSheet->driver_response);
+        $this->assertSame('en_taller', Vehicle::findOrFail($vehicleId)->operational_status);
         $this->actingAsEmail('mecanico@uleam.edu.ec');
         $workOrder = $this->postJson('/api/ordenes-taller', [
             'issue_log_id' => $issue->id,
@@ -285,9 +289,9 @@ class DemoAccountsAndWorkflowTest extends TestCase
             'origin' => 'MANTA',
             'destination' => $destination,
             'travel_reason' => "Prueba automatizada de flujo {$type}",
-            'departure_date' => now()->addDays(3)->toDateString(),
+            'departure_date' => now()->addDays(10)->toDateString(),
             'departure_time' => '08:00',
-            'return_date' => now()->addDays(4)->toDateString(),
+            'return_date' => now()->addDays(11)->toDateString(),
             'return_time' => '18:00',
             'declaracion_fondos_aceptada' => true,
         ];

@@ -21,6 +21,10 @@ class AdminUserDeletionSafetyTest extends TestCase
         $driverRole = Role::where('name', 'conductor')->firstOrFail();
         $secretariat = $this->makeUser('secretaria', $secretariatRole->id);
         $driverUser = $this->makeUser('conductor', $driverRole->id);
+        $secretariat->syncRoleNames(['secretaria']);
+        $driverUser->syncRoleNames(['conductor']);
+        $this->assertTrue($secretariat->fresh()->hasRole('secretaria'));
+        $this->assertTrue((bool) $secretariat->fresh()->is_active);
 
         $driver = Driver::create([
             'user_id' => $driverUser->id,
@@ -53,10 +57,10 @@ class AdminUserDeletionSafetyTest extends TestCase
             'trip_status' => 'finalizado',
         ]);
 
-        $this->actingAs($secretariat)
-            ->deleteJson('/api/admin/usuarios/'.$driverUser->id)
-            ->assertOk()
-            ->assertJsonPath('soft_deleted', true);
+        $token = $secretariat->createToken('admin-deletion-safety-test')->plainTextToken;
+        $response = $this->withToken($token)->deleteJson('/api/admin/usuarios/'.$driverUser->id);
+        $this->assertSame(200, $response->status(), 'Respuesta HTTP: '.($response->json('message') ?? 'sin mensaje'));
+        $response->assertJsonPath('soft_deleted', true);
 
         $this->assertDatabaseHas('users', [
             'id' => $driverUser->id,
