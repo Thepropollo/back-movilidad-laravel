@@ -33,8 +33,17 @@ class RouteMapController extends Controller
             'destination_longitude' => $sheet->request?->destination_longitude,
             'departure_date' => optional($sheet->request?->departure_date)?->toDateString(),
             'return_date' => optional($sheet->request?->return_date)?->toDateString(),
-            'vehicle' => $sheet->vehicle,
-            'driver' => $sheet->driver?->user,
+            'vehicle' => $sheet->vehicle ? [
+                'id' => $sheet->vehicle->id,
+                'plate' => $sheet->vehicle->plate,
+                'brand' => $sheet->vehicle->brand,
+                'model' => $sheet->vehicle->model,
+            ] : null,
+            'driver' => $sheet->driver?->user ? [
+                'id' => $sheet->driver->user->id,
+                'first_name' => $sheet->driver->user->first_name,
+                'last_name' => $sheet->driver->user->last_name,
+            ] : null,
             'stops' => $sheet->stops->map(fn ($s) => [
                 'id' => $s->id,
                 'sequence' => $s->sequence,

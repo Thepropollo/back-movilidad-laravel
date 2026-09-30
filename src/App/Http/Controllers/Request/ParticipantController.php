@@ -31,9 +31,10 @@ class ParticipantController extends Controller
             return response()->json(['message' => 'Acceso denegado.'], 403);
         }
 
-        $participants = PassengerManifest::with('user')
+        $rows = PassengerManifest::with('user')
             ->where('request_id', $id)
             ->get();
+        $participants = $rows->map(fn (PassengerManifest $row) => $this->presentParticipant($row));
 
         return response()->json([
             'participants' => $participants,
@@ -88,7 +89,7 @@ class ParticipantController extends Controller
 
         return response()->json([
             'message' => 'Participante invitado.',
-            'participant' => $row->load('user'),
+            'participant' => $this->presentParticipant($row->load('user')),
         ], 201);
     }
 
@@ -99,7 +100,35 @@ class ParticipantController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return response()->json($rows);
+        return response()->json($rows->map(function (PassengerManifest $row) {
+            $mobilization = $row->request;
+            $sheet = $mobilization?->routeSheet;
+
+            return [
+                ...$this->presentParticipant($row),
+                'request' => $mobilization ? [
+                    'id' => $mobilization->id,
+                    'status' => $mobilization->status,
+                    'origin' => $mobilization->origin,
+                    'destination' => $mobilization->destination,
+                    'departure_date' => $mobilization->departure_date?->toDateString(),
+                    'return_date' => $mobilization->return_date?->toDateString(),
+                    'requester' => $mobilization->requester ? [
+                        'first_name' => $mobilization->requester->first_name,
+                        'last_name' => $mobilization->requester->last_name,
+                    ] : null,
+                    'route_sheet' => $sheet ? [
+                        'id' => $sheet->id,
+                        'trip_status' => $sheet->trip_status,
+                        'vehicle' => $sheet->vehicle ? ['plate' => $sheet->vehicle->plate] : null,
+                        'driver' => $sheet->driver?->user ? [
+                            'first_name' => $sheet->driver->user->first_name,
+                            'last_name' => $sheet->driver->user->last_name,
+                        ] : null,
+                    ] : null,
+                ] : null,
+            ];
+        })->values());
     }
 
     public function respond(Request $request, int $id)
@@ -133,7 +162,11 @@ class ParticipantController extends Controller
 
         return response()->json([
             'message' => 'Respuesta registrada.',
-            'participant' => $row->fresh('request'),
+            'participant' => $this->presentParticipant($row->fresh('user')),
+            'request' => $row->request ? [
+                'id' => $row->request->id,
+                'status' => $row->request->status,
+            ] : null,
         ]);
     }
 
@@ -163,17 +196,32 @@ class ParticipantController extends Controller
             })
             ->where(function (Builder $query) use ($q) {
                 $query->whereLike('first_name', "{$q}%", caseSensitive: false)
-                    ->orWhereLike('last_name', "{$q}%", caseSensitive: false)
-                    ->orWhereLike('national_id', "{$q}%", caseSensitive: false)
-                    ->orWhereLike('email', "{$q}%", caseSensitive: false);
+                    ->orWhereLike('last_name', "{$q}%", caseSensitive: false);
             })
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->simplePaginate(
                 $perPage,
-                ['id', 'first_name', 'last_name', 'email', 'national_id', 'faculty_institution']
+                ['id', 'first_name', 'last_name', 'faculty_institution']
             );
 
         return response()->json($students);
+    }
+
+    /** @return array<string, mixed> */
+    private function presentParticipant(PassengerManifest $row): array
+    {
+        $row->loadMissing('user');
+
+        return [
+            'id' => $row->id,
+            'user_id' => $row->user_id,
+            'first_name' => $row->user?->first_name,
+            'last_name' => $row->user?->last_name,
+            'invitation_status' => $row->invitation_status,
+            'attended' => $row->attended,
+            'reject_reason' => $row->reject_reason,
+            'responded_at' => $row->responded_at,
+        ];
     }
 }
