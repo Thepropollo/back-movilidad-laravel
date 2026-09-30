@@ -11,6 +11,7 @@ Inspección estática realizada el 2026-09-29 en la rama `audit/backend`. No se 
 - Pruebas: `phpunit.xml` configura SQLite `:memory:`. Este PHP tiene `pdo_pgsql`, pero no `pdo_sqlite`; la suite falla antes de ejecutar migraciones.
 - Dependencias PHP: Composer con `composer.lock`. Dependencias JS: npm; `package.json` declara Vite/Tailwind/Concurrently, pero no hay `package-lock.json` y `node_modules` no existe.
 - Despliegue: no hay Dockerfile, compose, manifiesto de proveedor ni guía de despliegue. El proveedor queda por definir. Laravel ofrece `/up` como healthcheck.
+- Primer usuario privilegiado: el catálogo identifica a Secretaría como rol con funciones administrativas; no existe un rol administrador independiente. `php artisan app:bootstrap-secretaria` solicita los datos y la contraseña de forma interactiva, y solo crea la primera cuenta de Secretaría. El seeder de demostración se bloquea en producción; no debe usarse como bootstrap.
 - Contrato API: no existe OpenAPI/Swagger. Las 109 rutas registradas (104 bajo `/api`) están en [endpoints.md](endpoints.md), obtenidas de `php artisan route:list --json`.
 - Estructura: `src/App/Http/Controllers/` contiene controladores; `src/Domain/` contiene modelos y acciones; `routes/` define API/web; `database/migrations/`, `factories/` y `seeders/` definen persistencia y datos.
 
