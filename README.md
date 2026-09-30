@@ -1,58 +1,52 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Backend de movilidad universitaria
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+API Laravel para solicitudes de transporte, aprobaciones, asignaciones, viajes, combustible, mantenimiento, compensaciones y documentos.
 
-## About Laravel
+## Requisitos
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.3 o posterior, Composer 2 y extensiones `pdo_pgsql`, `mbstring`, `openssl`, `fileinfo`, `intl`, `zip`, `gd` y `bcmath`.
+- Node.js 22 o posterior y npm para compilar los recursos web.
+- PostgreSQL para una instalación persistente. Las pruebas PHPUnit usan SQLite en memoria y requieren `pdo_sqlite`.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Instalación local
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```sh
+composer install
+npm ci
+cp .env.example .env
+php artisan key:generate
+npm run build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Para desarrollo local, cambia `.env` a `APP_ENV=local`, `APP_URL=http://localhost:8000`, el origen local del frontend y `SESSION_SECURE_COOKIE=false`. Configura una base local o desechable y confirma `DB_HOST`, `DB_PORT` y `DB_DATABASE` antes de ejecutar cualquier migración. No uses una base con datos reales durante pruebas. Luego:
 
-## Contributing
+```sh
+php artisan migrate
+php artisan app:bootstrap-secretaria
+php artisan serve
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+El comando de bootstrap solicita interactivamente el primer usuario de Secretaría; no hay usuario ni contraseña predeterminados. Las cuentas de demostración del seeder se bloquean en `production` y no son un procedimiento de despliegue.
 
-## Code of Conduct
+## Pruebas y calidad
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```sh
+php artisan test
+composer audit --locked --no-dev
+npm audit
+npm run build
+```
 
-## Security Vulnerabilities
+Revisa la conexión definida en `phpunit.xml` antes de lanzar tests: debe apuntar a SQLite en memoria o PostgreSQL local desechable, nunca a producción. La suite necesita `pdo_sqlite` si usa SQLite. Los tests que ejercitan concurrencia y locking deben ejecutarse también contra una base PostgreSQL desechable antes de la puesta en marcha.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Documentación de API
 
-## License
+La definición OpenAPI está en [`openapi.yaml`](openapi.yaml), con versiones JSON y rutas de consulta si se habilita Scalar. Revísala frente a `php artisan route:list` y los contratos de los controladores en cada cambio. No incluyas credenciales reales ni de demostración en ejemplos publicados. Las rutas de documentación son públicas.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Despliegue
+
+La aplicación no está ligada a un proveedor. Configura el mismo conjunto de variables en el entorno elegido, termina TLS en un proxy confiable, restringe CORS al origen exacto del frontend, guarda documentos en almacenamiento privado persistente y usa PostgreSQL. No publiques `.env` ni credenciales en imágenes o logs.
+
+El orden sugerido de publicación, las migraciones, el bootstrap de Secretaría, la política de respaldo/restauración y el Dockerfile ilustrativo están en [`AUDITORIA/despliegue-estandar.md`](AUDITORIA/despliegue-estandar.md) y [`Dockerfile.example`](Dockerfile.example). El Dockerfile es una propuesta que requiere build y pruebas en un entorno con Docker; no reemplaza la configuración del servidor web/FPM, TLS, secretos, almacenamiento ni procesos de cola.
+
+Healthcheck Laravel: `GET /up`. Para operación estable configura worker de colas, reinicio ordenado de workers en cada release, límites/timeout del proxy y monitoreo de logs sin PII.

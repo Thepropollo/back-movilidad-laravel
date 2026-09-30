@@ -1,0 +1,35 @@
+# PROPUESTA ilustrativa, no verificada con un build de imagen en esta auditoría.
+# Ejecuta PHP-FPM; el servidor HTTP/TLS y el proxy se configuran por separado.
+FROM node:22-alpine AS assets
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM composer:2 AS composer-binary
+
+FROM php:8.3-fpm-alpine AS app
+RUN apk add --no-cache \
+        freetype-dev \
+        icu-dev \
+        libjpeg-turbo-dev \
+        libpng-dev \
+        libzip-dev \
+        oniguruma-dev \
+        postgresql-dev \
+        zlib-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" bcmath gd intl mbstring opcache pcntl pdo_pgsql zip
+
+COPY --from=composer-binary /usr/bin/composer /usr/bin/composer
+WORKDIR /var/www/html
+COPY . .
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
+    && mkdir -p storage/app/private storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+COPY --from=assets --chown=www-data:www-data /app/public/build ./public/build
+
+USER www-data
+EXPOSE 9000
+CMD ["php-fpm", "-F"]
