@@ -33,7 +33,7 @@ La plataforma identifica Secretaría/jefatura de transporte como ejecutora de la
 | Docker | No verificado | `Dockerfile.example` está marcado como propuesta; no se construyó ni ejecutó como contenedor. |
 | Escaneo de secretos | Parcial | Un escaneo heurístico de parches Git no detectó patrones configurados para llaves privadas, tokens conocidos ni credenciales literales; `.env` no se mostró ni se usó. No hay `gitleaks`/`trufflehog` instalado; no es una certificación exhaustiva del historial. |
 
-La ejecución de pruebas y migraciones usó clústeres PostgreSQL temporales bajo `/tmp`, con bases nuevas y nombres verificados. `.env` (`tesis`) y la base `tesis_test` configurada en el `phpunit.xml` del árbol de trabajo no fueron destino de estas operaciones. Al cierre, `bootstrap/app.php` y `phpunit.xml` conservan cambios locales preexistentes y quedaron fuera de los commits de auditoría; las pruebas pasaron con variables de entorno explícitas. `.gitignore` está limpio.
+La ejecución de pruebas y migraciones usó clústeres PostgreSQL temporales bajo `/tmp`, con bases nuevas y nombres verificados. `.env` (`tesis`) y la base `tesis_test` configurada en el `phpunit.xml` del árbol de trabajo no fueron destino de estas operaciones. Los cambios locales existentes en `.gitignore`, `bootstrap/app.php` y `phpunit.xml` se preservaron fuera de los commits de auditoría; las pruebas pasaron con variables de entorno explícitas que evitaron la base declarada en `phpunit.xml`.
 
 ## Hallazgos corregidos y commits
 
