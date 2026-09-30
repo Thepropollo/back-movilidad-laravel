@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Workshop;
 
 use App\Http\Controllers\Controller;
-use Domain\Vehicles\Models\Vehicle;
-use Domain\Workshop\Models\IssueLog;
+use Domain\Workshop\Actions\ReportVehicleIssueAction;
 use Illuminate\Http\Request;
 
 class IssueLogStoreController extends Controller
 {
-    public function __invoke(Request $request)
+    public function __invoke(Request $request, ReportVehicleIssueAction $action)
     {
         $user = $request->user();
         $data = $request->validate([
@@ -21,23 +20,15 @@ class IssueLogStoreController extends Controller
             'breakdown_date' => 'nullable|date',
         ]);
 
-        Vehicle::findOrFail($data['vehicle_id']);
-
-        $description = trim(
-            ($data['issue_type'] ?? 'Novedad')
-            .($data['city'] ? ' en '.$data['city'] : '')
-            .': '
-            .$data['description']
+        $issue = $action->execute(
+            userId: (int) $user->id,
+            vehicleId: (int) $data['vehicle_id'],
+            routeSheetId: isset($data['route_sheet_id']) ? (int) $data['route_sheet_id'] : null,
+            description: $data['description'],
+            city: $data['city'] ?? null,
+            issueType: $data['issue_type'] ?? null,
+            breakdownDate: $data['breakdown_date'] ?? null
         );
-
-        $issue = IssueLog::create([
-            'vehicle_id' => $data['vehicle_id'],
-            'route_sheet_id' => $data['route_sheet_id'] ?? null,
-            'reporting_driver_id' => $user->id,
-            'breakdown_date' => $data['breakdown_date'] ?? now()->toDateString(),
-            'description' => $description,
-            'status' => 'pendiente',
-        ]);
 
         return response()->json(['message' => 'Novedad registrada.', 'issue' => $issue], 201);
     }
