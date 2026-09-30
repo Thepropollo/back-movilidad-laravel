@@ -13,24 +13,25 @@ info:
     \ neumáticos, actas de entrega/recepción en garita y órdenes de taller.\n5. **Combustible:** Convenios\
     \ con estaciones de servicio y órdenes de abastecimiento con código de validación.\n6. **Liquidación\
     \ y Viáticos:** Cálculo transparente de horas extras y subsistencias bajo normativa institucional.\n\
-    7. **Documentos Oficiales y registro de firma HMAC de la aplicación:** Trazabilidad documental con\
-    \ sellos de tiempo, firmas criptográficas SHA-256 e interoperabilidad de códigos de calidad (PST-01-F-003,\
-    \ PST-01-F-006, PST-01-F-004.1, PST-01-F-003-OT, PAM-04-F-007).\n\n---\n\n## \U0001F510 Autenticación\
-    \ y Seguridad\nLa API utiliza **Laravel Sanctum** para autenticación mediante Bearer Tokens.\n- Para\
-    \ autenticarse, envíe una petición `POST /api/login` con sus credenciales.\n- En las peticiones posteriores,\
-    \ incluya la cabecera HTTP:\n  ```http\n  Authorization: Bearer <tu_token_aqui>\n  Accept: application/json\n\
-    \  ```\n\n### Cuentas Semilla de Prueba (Entorno de Desarrollo)\n| Rol | Correo Institucional | Contraseña\
-    \ | Responsabilidad |\n| :--- | :--- | :--- | :--- |\n| **Secretaría / Admin** | `secretaria@uleam.edu.ec`\
-    \ | `password` | Autorizaciones, hojas de ruta, choferes, flota, combustible y compensaciones. |\n\
-    | **Docente / Solicitante** | `docente@uleam.edu.ec` | `password` | Creación de solicitudes, manifiesto\
-    \ de estudiantes y seguimiento. |\n| **Vicerrectorado** | `vicerrector@uleam.edu.ec` | `password`\
-    \ | Aprobación de viajes externos a escala nacional. |\n| **Conductor / Chofer** | `conductor@uleam.edu.ec`\
-    \ | `password` | Aceptación de viajes, registro de paradas, novedad en ruta y viáticos. |\n| **Mecánico\
-    \ de Patio** | `mecanico@uleam.edu.ec` | `password` | Inspecciones pre-operacionales, actas garita\
-    \ y órdenes de mantenimiento. |\n| **Facultad** | `facultad@uleam.edu.ec` | `password` | Supervisión\
-    \ de movilizaciones adscritas a la unidad académica. |\n| **Estudiante** | `estudiante@uleam.edu.ec`\
-    \ | `password` | Confirmación de participación como pasajero. |\n No es una firma asimétrica o certificada\
-    \ embebida en el PDF."
+    7. **Documentos Oficiales y registro de firma de aplicación (Ed25519 con Sodium disponible; fallback\
+    \ HMAC usando APP_KEY):** Trazabilidad documental con sellos de tiempo, firmas criptográficas SHA-256\
+    \ e interoperabilidad de códigos de calidad (PST-01-F-003, PST-01-F-006, PST-01-F-004.1, PST-01-F-003-OT,\
+    \ PAM-04-F-007).\n\n---\n\n## \U0001F510 Autenticación y Seguridad\nLa API utiliza **Laravel Sanctum**\
+    \ para autenticación mediante Bearer Tokens.\n- Para autenticarse, envíe una petición `POST /api/login`\
+    \ con sus credenciales.\n- En las peticiones posteriores, incluya la cabecera HTTP:\n  ```http\n \
+    \ Authorization: Bearer <tu_token_aqui>\n  Accept: application/json\n  ```\n\n### Cuentas Semilla\
+    \ de Prueba (Entorno de Desarrollo)\n| Rol | Correo Institucional | Contraseña | Responsabilidad |\n\
+    | :--- | :--- | :--- | :--- |\n| **Secretaría / Admin** | `secretaria@uleam.edu.ec` | `password` |\
+    \ Autorizaciones, hojas de ruta, choferes, flota, combustible y compensaciones. |\n| **Docente / Solicitante**\
+    \ | `docente@uleam.edu.ec` | `password` | Creación de solicitudes, manifiesto de estudiantes y seguimiento.\
+    \ |\n| **Vicerrectorado** | `vicerrector@uleam.edu.ec` | `password` | Aprobación de viajes externos\
+    \ a escala nacional. |\n| **Conductor / Chofer** | `conductor@uleam.edu.ec` | `password` | Aceptación\
+    \ de viajes, registro de paradas, novedad en ruta y viáticos. |\n| **Mecánico de Patio** | `mecanico@uleam.edu.ec`\
+    \ | `password` | Inspecciones pre-operacionales, actas garita y órdenes de mantenimiento. |\n| **Facultad**\
+    \ | `facultad@uleam.edu.ec` | `password` | Supervisión de movilizaciones adscritas a la unidad académica.\
+    \ |\n| **Estudiante** | `estudiante@uleam.edu.ec` | `password` | Confirmación de participación como\
+    \ pasajero. |\n La firma se guarda como metadato separado y no queda embebida ni certificada por una\
+    \ autoridad en el PDF."
   version: 1.0.0
   contact:
     name: Dirección de Transporte y Mantenimiento - ULEAM
@@ -2463,8 +2464,9 @@ paths:
       tags:
       - Documentos y Firma Digital
       summary: Estampar firma digital o criptográfica en documento institucional
-      description: Estampar registro de firma HMAC de la aplicación o criptográfica en documento institucional
-        No es una firma asimétrica o certificada embebida en el PDF.
+      description: Estampar registro de firma de aplicación (Ed25519 con Sodium disponible; fallback HMAC
+        usando APP_KEY) o criptográfica en documento institucional La firma se guarda como metadato separado
+        y no queda embebida ni certificada por una autoridad en el PDF.
       operationId: post_api_documentos_id_firmar
       responses:
         '200':

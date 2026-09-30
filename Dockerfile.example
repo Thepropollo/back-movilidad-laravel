@@ -16,11 +16,12 @@ RUN apk add --no-cache \
         libjpeg-turbo-dev \
         libpng-dev \
         libzip-dev \
+        libsodium-dev \
         oniguruma-dev \
         postgresql-dev \
         zlib-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" bcmath gd intl mbstring opcache pcntl pdo_pgsql zip
+    && docker-php-ext-install -j"$(nproc)" bcmath gd intl mbstring opcache pcntl pdo_pgsql sodium zip
 
 COPY --from=composer-binary /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html

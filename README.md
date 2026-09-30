@@ -4,7 +4,7 @@ API Laravel para solicitudes de transporte, aprobaciones, asignaciones, viajes, 
 
 ## Requisitos
 
-- PHP 8.3 o posterior, Composer 2 y extensiones `pdo_pgsql`, `mbstring`, `openssl`, `fileinfo`, `intl`, `zip`, `gd` y `bcmath`.
+- PHP 8.3 o posterior, Composer 2 y extensiones `pdo_pgsql`, `mbstring`, `openssl`, `fileinfo`, `intl`, `zip`, `gd` y `bcmath`. Habilita `sodium` para firmas Ed25519; sin ella el código recurre a HMAC con `APP_KEY`, que no es una firma asimétrica ni ofrece no repudio.
 - Node.js 22 o posterior y npm para compilar los recursos web.
 - PostgreSQL para una instalación persistente. Las pruebas PHPUnit usan SQLite en memoria y requieren `pdo_sqlite`.
 
