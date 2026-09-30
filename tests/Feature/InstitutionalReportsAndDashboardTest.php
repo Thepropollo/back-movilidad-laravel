@@ -23,7 +23,7 @@ class InstitutionalReportsAndDashboardTest extends TestCase
 
         $this->getJson('/api/dashboard/metrics?focus=secretaria')
             ->assertOk()
-            ->assertJsonPath('title', 'Operación de Secretaría')
+            ->assertJsonPath('title', 'Operación de la flota')
             ->assertJsonStructure([
                 'kpis',
                 'queue',
@@ -41,6 +41,74 @@ class InstitutionalReportsAndDashboardTest extends TestCase
         $this->assertSame('Mis movilizaciones', $response->json('title'));
         $labels = collect($response->json('kpis'))->pluck('label')->all();
         $this->assertNotContains('Por autorizar', $labels);
+        $this->assertContains('En autorización', $labels);
+        $this->assertContains('Salidas del mes', $labels);
+    }
+
+    public function test_facultad_y_vicerrector_tienen_tablero_con_constancia(): void
+    {
+        $this->actingAsEmail('decano@uleam.edu.ec');
+        $facultad = $this->getJson('/api/dashboard/metrics?focus=responsable_facultad')->assertOk();
+        $this->assertSame('Movilidad de la facultad', $facultad->json('title'));
+        $this->assertGreaterThanOrEqual(4, count($facultad->json('kpis')));
+        $this->assertNotEmpty($facultad->json('recent'));
+
+        $this->actingAsEmail('vicerrector@uleam.edu.ec');
+        $vic = $this->getJson('/api/dashboard/metrics?focus=vicerrector')->assertOk();
+        $this->assertSame('Autorización de viajes externos', $vic->json('title'));
+        $labels = collect($vic->json('kpis'))->pluck('label')->all();
+        $this->assertContains('Por aprobar', $labels);
+        $this->assertContains('Externas del mes', $labels);
+    }
+
+    public function test_flujo_devuelve_linea_de_fases_y_alerta_al_solicitante(): void
+    {
+        $this->actingAsEmail('docente@uleam.edu.ec');
+        $requestId = $this->postJson('/api/solicitudes', [
+            'mobilization_type' => 'interna',
+            'origin' => 'MANTA',
+            'destination' => 'CHONE FASES',
+            'travel_reason' => 'Práctica de campo para línea de proceso',
+            'departure_date' => now()->addDays(3)->toDateString(),
+            'departure_time' => '08:00',
+            'return_date' => now()->addDays(3)->toDateString(),
+            'return_time' => '18:00',
+            'declaracion_fondos_aceptada' => true,
+        ])->assertCreated()->json('request.id');
+
+        $flujo = $this->getJson("/api/solicitudes/{$requestId}/flujo")->assertOk();
+        $phases = collect($flujo->json('phases'));
+        $this->assertContains('secretaria', $phases->pluck('key')->all());
+        $this->assertSame('current', $phases->firstWhere('key', 'secretaria')['state']);
+        $this->assertSame('pending', $phases->firstWhere('key', 'asignacion')['state']);
+
+        $alerts = collect($this->getJson('/api/alertas')->assertOk()->json('alerts'));
+        $this->assertTrue(
+            $alerts->contains(fn (array $alert) => $alert['type'] === 'solicitud_en_tramite'),
+            'El docente debe ver el aviso de trámite en Secretaría.'
+        );
+
+        $this->actingAsEmail('secretaria@uleam.edu.ec');
+        $this->patchJson("/api/solicitudes/{$requestId}/autorizar-secretaria", [
+            'action' => 'approve',
+            'observation' => 'Autorizada para asignar.',
+        ])->assertOk();
+
+        $this->actingAsEmail('docente@uleam.edu.ec');
+        $after = collect($this->getJson('/api/alertas')->assertOk()->json('alerts'));
+        $this->assertFalse(
+            $after->contains(fn (array $alert) => $alert['type'] === 'solicitud_en_tramite'),
+            'Al autorizar, el aviso de espera en Secretaría debe desaparecer.'
+        );
+        $this->assertTrue(
+            $after->contains(fn (array $alert) => $alert['type'] === 'solicitud_autorizada'),
+            'El docente debe ver que ya está autorizada y espera unidad.'
+        );
+
+        $asignada = collect(
+            $this->getJson("/api/solicitudes/{$requestId}/flujo")->assertOk()->json('phases')
+        )->firstWhere('key', 'secretaria');
+        $this->assertSame('done', $asignada['state']);
     }
 
     public function test_reportes_se_exportan_en_pdf_institucional(): void

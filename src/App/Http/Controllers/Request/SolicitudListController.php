@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
 use Domain\Requests\Models\MobilizationRequest;
+use Domain\Requests\Support\RequestWorkflow;
 use Illuminate\Http\Request;
 
 class SolicitudListController extends Controller
@@ -50,6 +51,13 @@ class SolicitudListController extends Controller
 
         $requests = $query->orderBy('created_at', 'desc')->get();
 
-        return response()->json($requests);
+        return response()->json(
+            $requests->map(function (MobilizationRequest $row) {
+                $payload = $row->toArray();
+                $payload['phases'] = RequestWorkflow::phases($row);
+
+                return $payload;
+            })->values()
+        );
     }
 }

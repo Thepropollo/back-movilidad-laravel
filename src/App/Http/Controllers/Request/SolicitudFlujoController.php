@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
 use Domain\Requests\Models\MobilizationRequest;
+use Domain\Requests\Support\RequestWorkflow;
 use Illuminate\Http\Request;
 
 class SolicitudFlujoController extends Controller
@@ -37,6 +38,7 @@ class SolicitudFlujoController extends Controller
         return response()->json([
             'request' => $mobilization,
             'timeline' => $mobilization->statusHistories,
+            'phases' => RequestWorkflow::phases($mobilization),
         ]);
     }
 }
