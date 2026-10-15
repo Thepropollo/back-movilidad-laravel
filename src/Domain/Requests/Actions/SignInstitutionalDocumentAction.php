@@ -8,7 +8,6 @@ use Domain\Requests\Models\GeneratedDocument;
 use Domain\Requests\Models\MobilizationRequest;
 use Domain\Requests\Support\DigitalSignatureService;
 use Domain\Requests\Support\RequestWorkflow;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -23,9 +22,7 @@ class SignInstitutionalDocumentAction
         GeneratedDocument $document,
         User $actor,
         string $slot,
-        string $password,
-        ?string $ipAddress = null,
-        ?string $signatureImage = null
+        ?string $ipAddress = null
     ): DocumentSignature {
         $slots = GeneratedDocument::signatureSlots($document->document_type);
         if (! isset($slots[$slot])) {
@@ -38,10 +35,6 @@ class SignInstitutionalDocumentAction
 
         if ($document->signatures()->where('slot', $slot)->exists()) {
             throw ValidationException::withMessages(['slot' => ['Ese espacio ya está firmado.']]);
-        }
-
-        if (! Hash::check($password, $actor->getAuthPassword())) {
-            throw ValidationException::withMessages(['password' => ['La contraseña no coincide. Confirme su identidad para firmar.']]);
         }
 
         $hash = $document->file_hash;
@@ -83,13 +76,6 @@ class SignInstitutionalDocumentAction
             'key_fingerprint' => $crypto['fingerprint'],
         ]);
 
-        if ($signatureImage) {
-            $path = $this->storeSignatureImage($signature->id, $signatureImage);
-            if ($path) {
-                $signature->update(['signature_image_path' => $path]);
-            }
-        }
-
         if ($document->request_id) {
             $request = MobilizationRequest::find($document->request_id);
             if ($request) {
@@ -104,24 +90,5 @@ class SignInstitutionalDocumentAction
         }
 
         return $signature->fresh('user');
-    }
-
-    private function storeSignatureImage(int $signatureId, string $dataUrl): ?string
-    {
-        if (! str_starts_with($dataUrl, 'data:image')) {
-            return null;
-        }
-        $parts = explode(',', $dataUrl, 2);
-        if (count($parts) !== 2) {
-            return null;
-        }
-        $binary = base64_decode($parts[1], true);
-        if ($binary === false || strlen($binary) < 32) {
-            return null;
-        }
-        $path = 'firmas/firma-'.$signatureId.'.png';
-        Storage::disk('local')->put($path, $binary);
-
-        return $path;
     }
 }
