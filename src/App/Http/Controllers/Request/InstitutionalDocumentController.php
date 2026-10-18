@@ -170,9 +170,7 @@ class InstitutionalDocumentController extends Controller
     {
         $data = $request->validate([
             'slot' => 'required|string|max:40',
-            'password' => 'required|string',
             'declaration' => 'accepted',
-            'signature_image' => 'nullable|string|max:400000',
         ]);
 
         $document = GeneratedDocument::findOrFail($id);
@@ -183,9 +181,7 @@ class InstitutionalDocumentController extends Controller
             document: $document,
             actor: $user,
             slot: $data['slot'],
-            password: $data['password'],
-            ipAddress: $request->ip(),
-            signatureImage: $data['signature_image'] ?? null
+            ipAddress: $request->ip()
         );
 
         return response()->json([

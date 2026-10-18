@@ -171,7 +171,7 @@ final class SimplePdf
 
     /**
      * @param  list<array{key: string, label: string}>  $slots
-     * @param  array<string, array{name?: string, national_id?: string, signed_at?: string, hash?: string}>  $signed
+     * @param  array<string, array{name?: string, national_id?: string, signed_at?: string, hash?: string, qr?: list<list<bool>>}>  $signed
      */
     public function signatureStamps(array $slots, array $signed = []): void
     {
@@ -179,14 +179,14 @@ final class SimplePdf
             return;
         }
         $this->heading('Firmas digitales');
-        $this->note('Firma digital RSA-SHA256 del sistema de movilidad. Verificar validez en Documentos. No es el certificado acreditado de ULEAM.');
+        $this->note('Al aceptar, la cuenta en sesión estampa un código QR. No es el certificado acreditado de ULEAM.');
         $gap = 8;
-        $width = min(175, ($this->innerWidth() - ($gap * (count($slots) - 1))) / max(1, count($slots)));
-        $boxH = 78;
+        $width = min(190, ($this->innerWidth() - ($gap * (count($slots) - 1))) / max(1, count($slots)));
+        $boxH = 96;
         $this->ensureSpace($boxH + 8);
         $x = $this->margin;
         $top = $this->y;
-        foreach ($slots as $i => $slot) {
+        foreach ($slots as $slot) {
             if ($x + $width > $this->pageW - $this->margin + 2) {
                 $this->y = $top - $boxH - 8;
                 $this->ensureSpace($boxH + 8);
@@ -200,17 +200,53 @@ final class SimplePdf
             $this->strokeRect($x, $top - $boxH, $width, $boxH);
             $this->ops[] = $this->textOp($x + 6, $top - 12, 7, true, $slot['label']);
             if ($data) {
-                $this->ops[] = $this->textOp($x + 6, $top - 26, 8, true, 'FIRMA DIGITAL');
-                $this->ops[] = $this->textOp($x + 6, $top - 38, 8, false, $this->clip((string) ($data['name'] ?? ''), $width - 12, 8));
-                $this->ops[] = $this->textOp($x + 6, $top - 50, 7, false, 'CI: '.$this->plain($data['national_id'] ?? ''));
-                $this->ops[] = $this->textOp($x + 6, $top - 62, 7, false, (string) ($data['signed_at'] ?? ''));
-                $this->ops[] = $this->textOp($x + 6, $top - 73, 6, false, 'Huella '.substr((string) ($data['hash'] ?? ''), 0, 16));
+                $qr = $data['qr'] ?? [];
+                $qrSize = $qr !== [] ? min(52, $width - 18) : 0;
+                $textW = $width - $qrSize - 16;
+                $this->ops[] = $this->textOp($x + 6, $top - 26, 8, true, 'FIRMA QR');
+                $this->ops[] = $this->textOp($x + 6, $top - 40, 8, false, $this->clip((string) ($data['name'] ?? ''), $textW, 8));
+                $this->ops[] = $this->textOp($x + 6, $top - 52, 7, false, $this->clip('CI: '.$this->plain($data['national_id'] ?? ''), $textW, 7));
+                $this->ops[] = $this->textOp($x + 6, $top - 64, 7, false, $this->clip((string) ($data['signed_at'] ?? ''), $textW, 7));
+                $this->ops[] = $this->textOp($x + 6, $top - 78, 6, false, $this->clip('Cuenta verificada', $textW, 6));
+                if ($qrSize > 0) {
+                    $this->drawQr($x + $width - $qrSize - 6, $top - $boxH + 8, $qr, $qrSize);
+                }
             } else {
-                $this->ops[] = $this->textOp($x + 6, $top - 40, 8, false, 'Pendiente de firma');
+                $this->ops[] = $this->textOp($x + 6, $top - 48, 8, false, 'Pendiente de aceptar');
             }
             $x += $width + $gap;
         }
         $this->y = $top - $boxH - 10;
+    }
+
+    /**
+     * @param  list<list<bool>>  $matrix
+     */
+    private function drawQr(float $x, float $yBottom, array $matrix, float $size): void
+    {
+        $modules = count($matrix);
+        if ($modules < 1) {
+            return;
+        }
+        $cell = $size / $modules;
+        $this->fillRect($x, $yBottom, $size, $size, 1, 1, 1);
+        for ($row = 0; $row < $modules; $row++) {
+            $line = $matrix[$row];
+            for ($col = 0; $col < $modules; $col++) {
+                if (empty($line[$col])) {
+                    continue;
+                }
+                $this->fillRect(
+                    $x + ($col * $cell),
+                    $yBottom + (($modules - 1 - $row) * $cell),
+                    $cell,
+                    $cell,
+                    0.07,
+                    0.20,
+                    0.40
+                );
+            }
+        }
     }
 
     public function note(string $text): void
