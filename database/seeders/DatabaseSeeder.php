@@ -651,6 +651,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->seedExtraAccounts();
+        $this->call(OctoberOperationalSeeder::class);
     }
 
     /**
