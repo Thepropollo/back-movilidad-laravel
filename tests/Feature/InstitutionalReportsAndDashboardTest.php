@@ -190,39 +190,32 @@ class InstitutionalReportsAndDashboardTest extends TestCase
 
         $this->postJson("/api/documentos/{$documentId}/firmar", [
             'slot' => 'secretaria',
-            'password' => 'password',
             'declaration' => true,
         ])->assertOk()->assertJsonPath('signature.slot', 'secretaria');
 
         $this->postJson("/api/documentos/{$documentId}/firmar", [
             'slot' => 'secretaria',
-            'password' => 'password',
             'declaration' => true,
         ])->assertStatus(422);
 
         $this->actingAsEmail('docente@uleam.edu.ec');
         $this->postJson("/api/documentos/{$documentId}/firmar", [
             'slot' => 'secretaria',
-            'password' => 'password',
-            'declaration' => true,
-        ])->assertStatus(422);
-
-        $this->actingAsEmail('docente@uleam.edu.ec');
-        $this->postJson("/api/documentos/{$documentId}/firmar", [
-            'slot' => 'solicitante',
-            'password' => 'wrong',
             'declaration' => true,
         ])->assertStatus(422);
 
         $this->postJson("/api/documentos/{$documentId}/firmar", [
             'slot' => 'solicitante',
-            'password' => 'password',
+        ])->assertStatus(422);
+
+        $this->postJson("/api/documentos/{$documentId}/firmar", [
+            'slot' => 'solicitante',
             'declaration' => true,
         ])->assertOk();
 
         $pdf = $this->get("/api/documentos/{$documentId}/archivo");
         $pdf->assertOk();
-        $this->assertStringContainsString('FIRMA DIGITAL', $pdf->streamedContent());
+        $this->assertStringContainsString('FIRMA QR', $pdf->streamedContent());
 
         $this->getJson("/api/documentos/{$documentId}/verificar")
             ->assertOk()

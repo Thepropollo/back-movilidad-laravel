@@ -649,5 +649,67 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+
+        $this->seedExtraAccounts();
+        $this->call(OctoberOperationalSeeder::class);
+    }
+
+    /**
+     * Dos cuentas adicionales por rol, para probar el flujo con personas distintas.
+     * Contraseña de todas: password
+     */
+    private function seedExtraAccounts(): void
+    {
+        $password = Hash::make('password');
+        $people = [
+            ['email' => 'secretaria2@uleam.edu.ec', 'national_id' => '1399000101', 'first_name' => 'Carmen Elena', 'last_name' => 'Ruiz (Secretaría)', 'faculty' => 'DIRECCIÓN DE TRANSPORTE Y MOVILIDAD', 'roles' => ['secretaria']],
+            ['email' => 'secretaria3@uleam.edu.ec', 'national_id' => '1399000102', 'first_name' => 'José Luis', 'last_name' => 'Palma (Secretaría)', 'faculty' => 'DIRECCIÓN DE TRANSPORTE Y MOVILIDAD', 'roles' => ['secretaria']],
+            ['email' => 'docente2@uleam.edu.ec', 'national_id' => '1399000103', 'first_name' => 'María Fernanda', 'last_name' => 'Castro (Docente)', 'faculty' => 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN', 'roles' => ['docente']],
+            ['email' => 'docente3@uleam.edu.ec', 'national_id' => '1399000104', 'first_name' => 'Pedro Javier', 'last_name' => 'Almeida (Docente)', 'faculty' => 'FACULTAD DE INGENIERÍA', 'roles' => ['docente']],
+            ['email' => 'vicerrector2@uleam.edu.ec', 'national_id' => '1399000105', 'first_name' => 'Carlos Eduardo', 'last_name' => 'Bravo (Vicerrector)', 'faculty' => 'VICERRECTORADO', 'roles' => ['vicerrector']],
+            ['email' => 'vicerrector3@uleam.edu.ec', 'national_id' => '1399000106', 'first_name' => 'Lucía Beatriz', 'last_name' => 'Navarrete (Vicerrectora)', 'faculty' => 'VICERRECTORADO', 'roles' => ['vicerrector']],
+            ['email' => 'conductor2@uleam.edu.ec', 'national_id' => '1399000107', 'first_name' => 'Miguel Ángel', 'last_name' => 'Santos (Conductor)', 'faculty' => 'DIRECCIÓN DE TRANSPORTE Y MOVILIDAD', 'roles' => ['conductor'], 'driver' => true],
+            ['email' => 'conductor3@uleam.edu.ec', 'national_id' => '1399000108', 'first_name' => 'Rosa Isabel', 'last_name' => 'Chávez (Conductora)', 'faculty' => 'DIRECCIÓN DE TRANSPORTE Y MOVILIDAD', 'roles' => ['conductor'], 'driver' => true],
+            ['email' => 'mecanico2@uleam.edu.ec', 'national_id' => '1399000109', 'first_name' => 'Jorge Luis', 'last_name' => 'Pincay (Mecánico)', 'faculty' => 'DIRECCIÓN DE TRANSPORTE Y MOVILIDAD', 'roles' => ['mecanico']],
+            ['email' => 'mecanico3@uleam.edu.ec', 'national_id' => '1399000110', 'first_name' => 'Diana Carolina', 'last_name' => 'Mero (Mecánica)', 'faculty' => 'DIRECCIÓN DE TRANSPORTE Y MOVILIDAD', 'roles' => ['mecanico']],
+            ['email' => 'facultad2@uleam.edu.ec', 'national_id' => '1399000111', 'first_name' => 'Elena Patricia', 'last_name' => 'Moreira (Facultad)', 'faculty' => 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN', 'roles' => ['responsable_facultad', 'docente']],
+            ['email' => 'facultad3@uleam.edu.ec', 'national_id' => '1399000112', 'first_name' => 'Roberto Daniel', 'last_name' => 'Cedeño (Facultad)', 'faculty' => 'FACULTAD DE INGENIERÍA', 'roles' => ['responsable_facultad', 'docente']],
+            ['email' => 'estudiante2@uleam.edu.ec', 'national_id' => '1399000113', 'first_name' => 'Andrea Sofía', 'last_name' => 'Loor (Estudiante)', 'faculty' => 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN', 'roles' => ['estudiante']],
+            ['email' => 'estudiante3@uleam.edu.ec', 'national_id' => '1399000114', 'first_name' => 'Kevin Alexander', 'last_name' => 'Zambrano (Estudiante)', 'faculty' => 'FACULTAD DE INGENIERÍA', 'roles' => ['estudiante']],
+        ];
+
+        foreach ($people as $person) {
+            $primary = Role::where('name', $person['roles'][0])->first();
+            $user = User::firstOrCreate(
+                ['email' => $person['email']],
+                [
+                    'national_id' => $person['national_id'],
+                    'first_name' => $person['first_name'],
+                    'last_name' => $person['last_name'],
+                    'password' => $password,
+                    'faculty_institution' => $person['faculty'],
+                    'role_id' => $primary?->id,
+                ]
+            );
+            $user->syncRoleNames($person['roles'], $person['roles'][0]);
+
+            if (! empty($person['driver'])) {
+                $driver = Driver::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'contract_type' => 'nombramiento',
+                        'is_available' => true,
+                    ]
+                );
+                DriverLicense::firstOrCreate(
+                    ['driver_id' => $driver->id],
+                    [
+                        'license_type' => 'E',
+                        'current_points' => 30,
+                        'expiration_date' => Carbon::now()->addYears(4)->toDateString(),
+                    ]
+                );
+            }
+        }
     }
 }

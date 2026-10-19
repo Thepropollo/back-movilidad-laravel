@@ -4,6 +4,7 @@ namespace Domain\Requests\Actions;
 
 use Domain\Auth\Models\User;
 use Domain\Requests\Models\DocumentSignature;
+use Domain\Requests\Support\SignatureQr;
 use Domain\Requests\Models\GeneratedDocument;
 use Domain\Requests\Models\MobilizationRequest;
 use Domain\Requests\Models\RouteSheet;
@@ -132,11 +133,19 @@ class GenerateInstitutionalDocumentAction
         if ($this->signingDocumentId) {
             $rows = DocumentSignature::with('user')->where('document_id', $this->signingDocumentId)->get();
             foreach ($rows as $row) {
+                $nationalId = (string) ($row->user?->national_id ?? '');
+                $payload = SignatureQr::payload(
+                    (int) $this->signingDocumentId,
+                    (string) $row->slot,
+                    (int) $row->user_id,
+                    $nationalId
+                );
                 $signed[$row->slot] = [
                     'name' => trim($row->user?->first_name.' '.$row->user?->last_name),
-                    'national_id' => $row->user?->national_id,
+                    'national_id' => $nationalId,
                     'signed_at' => optional($row->signed_at)?->format('d/m/Y H:i'),
                     'hash' => $row->key_fingerprint ?: $row->document_hash,
+                    'qr' => SignatureQr::matrix($payload),
                 ];
             }
         }
